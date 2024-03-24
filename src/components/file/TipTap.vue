@@ -325,7 +325,13 @@ const exportContent = (content) => {
   let htmlContent = githubImg.rawToRelativeUrls(repoStore.owner, repoStore.repo, repoStore.branch, content);
   htmlContent = githubImg.htmlSwapPrefix(htmlContent, prefixInput.value, prefixOutput.value);
   
-  return (props.format == 'markdown') ? turndownService.turndown(htmlContent) : htmlContent;
+  if (props.format == 'markdown') {
+    return turndownService.turndown(htmlContent);
+  } else if (props.format == 'html') {
+    return htmlContent.replace(/(<(?:br|hr) ?\/?>|<\/(?:p|div|td|tr|table|h\d)>|<(?:tr|tbody)>)/g, "$1\n");
+  } else {
+    return htmlContent;
+  }
 };
 
 const setContent = async () => {
