@@ -53,6 +53,10 @@ const guardByBasicAuth = async ({ request, next, env }) => {
       'Invalid username or password.',
       {
         status: 401,
+        headers: {
+          // Prompts the user for credentials.
+          'WWW-Authenticate': 'Basic realm="Input username and password"',
+        },
       },
     );
   }
