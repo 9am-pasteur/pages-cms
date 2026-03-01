@@ -44,8 +44,8 @@
     </div>
     <div v-else class="text-center rounded-xl bg-neutral-100 dark:bg-neutral-850 p-6 h-full flex items-center">
       <div>
-        <h2 class="font-semibold tracking-tight">Find your GitHub repository.</h2>
-        <p class="text-neutral-400 dark:text-neutral-500">Search by organization and repository name. You need write permissions on the repository.</p>
+        <h2 class="font-semibold tracking-tight">Find your {{ provider.label }} repository.</h2>
+        <p class="text-neutral-400 dark:text-neutral-500">Search by organization/group and repository/project name. You need write permissions on the repository.</p>
       </div>
     </div>
   </div>
@@ -59,6 +59,7 @@ import notifications from '@/services/notifications';
 import github from '@/services/github';
 
 const repoStore = inject('repoStore', { owner: null, repo: null });
+const provider = computed(() => github.currentProviderConfig());
 
 const keywords = ref('');
 const results = ref([]);

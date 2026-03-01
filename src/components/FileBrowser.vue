@@ -114,8 +114,8 @@
                     <template #content>
                       <ul>
                         <li>
-                          <a class="link w-full" :href="`https://github.com/${props.owner}/${props.repo}/blob/${props.branch}/${item.path}`" target="_blank">
-                            <div class="truncate">See file on GitHub</div>
+                          <a class="link w-full" :href="provider.links.file(props.owner, props.repo, props.branch, item.path)" target="_blank">
+                            <div class="truncate">See file on {{ provider.label }}</div>
                             <Icon name="ExternalLink" class="h-4 w-4 stroke-2 shrink-0 ml-auto text-neutral-400 dark:text-neutral-500"/>
                           </a>
                         </li>
@@ -225,6 +225,7 @@ const props = defineProps({
 
 const contents = ref(null);
 const status = ref('loading');
+const provider = computed(() => github.currentProviderConfig());
 const path = ref(props.root);
 const layout = ref('grid');
 const isDragging = ref(false);

@@ -19,7 +19,7 @@
     <!-- Collection -->
     <template v-else-if="collection">
       <div class="max-w-screen-xl	mx-auto p-4 lg:p-8">
-        <!-- Header: label, add an entry and more (i.e. see folder on GitHub, add a folder) -->
+        <!-- Header: label, add an entry and more (i.e. see folder on provider, add a folder) -->
         <header class="flex gap-x-2 mb-8 items-center">
           <h1 class="font-semibold tracking-tight text-2xl lg:text-4xl mr-auto">{{ schema.label || schema.name }}</h1>
           <Dropdown :dropdownClass="'!max-w-none w-52 !z-[21]'" v-if="schema.subfolders !== false">
@@ -31,8 +31,8 @@
             <template #content>
               <ul>
                 <li>
-                  <a class="link w-full" :href="`https://github.com/${props.owner}/${props.repo}/blob/${props.branch}/${folder}`" target="_blank">
-                    <div class="truncate">See folder on GitHub</div>
+                  <a class="link w-full" :href="provider.links.folder(props.owner, props.repo, props.branch, folder)" target="_blank">
+                    <div class="truncate">See folder on {{ provider.label }}</div>
                     <Icon name="ExternalLink" class="h-4 w-4 stroke-2 shrink-0 ml-auto text-neutral-400 dark:text-neutral-500"/>
                   </a>
                 </li>
@@ -142,8 +142,8 @@
                             </a>
                           </li>
                           <li>
-                            <a class="link w-full" :href="`https://github.com/${props.owner}/${props.repo}/blob/${props.branch}/${item.path}`" target="_blank">
-                              <div class="truncate">See file on GitHub</div>
+                            <a class="link w-full" :href="provider.links.file(props.owner, props.repo, props.branch, item.path)" target="_blank">
+                              <div class="truncate">See file on {{ provider.label }}</div>
                               <Icon name="ExternalLink" class="h-4 w-4 stroke-2 shrink-0 ml-auto text-neutral-400 dark:text-neutral-500"/>
                             </a>
                           </li>
@@ -242,6 +242,7 @@ const props = defineProps({
 });
 
 const status = ref('loading');
+const provider = computed(() => github.currentProviderConfig());
 const renameComponent = ref(null);
 const renamePath = ref('');
 const addFolderComponent = ref(null);

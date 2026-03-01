@@ -25,7 +25,7 @@
             </li>
             <li><hr class="border-t border-neutral-150 dark:border-neutral-750 my-2"/></li>
             <li>
-              <a :href="`https://github.com/${owner}/${repo}/commits/${branch}/${path}`" target="_blank" class="link">
+              <a :href="provider.links.repo(owner, repo) + `/commits/${branch}/${path}`" target="_blank" class="link">
                 <div>Full history</div>
                 <Icon name="ExternalLink" class="h-4 w-4 stroke-2 shrink-0 ml-auto text-neutral-400 dark:text-neutral-500"/>
               </a>
@@ -37,7 +37,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import github from '@/services/github';
 import Dropdown from '@/components/utils/Dropdown.vue';
 import Icon from '@/components/utils/Icon.vue';
@@ -56,6 +56,7 @@ const props = defineProps({
 
 const commits = ref([]);
 const status = ref('');
+const provider = computed(() => github.currentProviderConfig());
 
 const setHistory = async () => {
   status.value = 'loading';

@@ -94,12 +94,18 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from) => {
-  // Redirect to saved page on callback from GitHub Oauth (see below)
-  if (to.query.access_token) {
-    github.setToken(to.query.access_token);
-    var redirect = localStorage.getItem('redirect') ? localStorage.getItem('redirect') : '/' ;
+  // OAuth callback with authorization code (PKCE) or legacy access_token
+  if (to.query.code || to.query.access_token) {
+    const code = to.query.code;
+    if (code) {
+      const token = await github.exchangeCode(code);
+      if (token) github.setToken(token);
+    } else if (to.query.access_token) {
+      github.setToken(to.query.access_token);
+    }
+    const redirect = localStorage.getItem('redirect') ? localStorage.getItem('redirect') : '/' ;
     localStorage.removeItem('redirect');
-    return { path: redirect }    
+    return { path: redirect }
   }
   // Redirect logged out users to log in screen and save page for redirection post-loing
   if (to.name != 'login' && github.token.value === null) {
