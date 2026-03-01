@@ -47,7 +47,14 @@ const mapProject = (p) => {
 };
 
 const searchRepos = async (token, query) => {
-  const baseParams = { membership: true, simple: true, per_page: 50, order_by: 'last_activity_at', sort: 'desc' };
+  const baseParams = {
+    membership: true,
+    simple: true,
+    per_page: 50,
+    order_by: 'last_activity_at',
+    sort: 'desc',
+    search_namespaces: true, // include namespace (user/group) in search
+  };
   const params = query ? { ...baseParams, search: query } : baseParams;
   const res = await axios.get(`${apiBase}/projects`, { params, headers: authHeaders(token) });
   return { items: res.data.map(mapProject) };
