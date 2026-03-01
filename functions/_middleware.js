@@ -1,12 +1,4 @@
-/**
- * Shows how to restrict access using the HTTP Basic schema.
- * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication
- * @see https://tools.ietf.org/html/rfc7617
- *
- */
-
-import { Buffer } from "node:buffer";
-
+// Basic auth middleware for Cloudflare Pages Functions (no Node.js built-ins).
 const encoder = new TextEncoder();
 
 /**
@@ -64,7 +56,8 @@ const guardByBasicAuth = async ({ request, next, env }) => {
       },
     );
   }
-  const credentials = Buffer.from(encoded, "base64").toString();
+  // Decode base64 without Node's Buffer (Pages/Workers environment)
+  const credentials = atob(encoded);
   const index = credentials.indexOf(':');
   // eslint-disable-next-line no-control-regex
   if (index === -1 || /[\0-\x1F\x7F]/.test(credentials)) {
@@ -97,4 +90,3 @@ const guardByBasicAuth = async ({ request, next, env }) => {
 };
 
 export const onRequest = [errorHandler, guardByBasicAuth];
-

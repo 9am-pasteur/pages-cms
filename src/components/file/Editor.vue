@@ -83,8 +83,8 @@
           <template #content>
             <ul>
               <li>
-                <a :href="`https://github.com/${props.owner}/${props.repo}/blob/${props.branch}/${props.path}`" target="_blank" class="link">
-                  <div>See file on GitHub</div>
+                <a :href="provider.links.file(props.owner, props.repo, props.branch, props.path)" target="_blank" class="link">
+                  <div>See file on {{ provider.label }}</div>
                   <Icon name="ExternalLink" class="h-4 w-4 stroke-2 shrink-0 ml-auto text-neutral-400 dark:text-neutral-500"/>
                 </a>
               </li>
@@ -195,6 +195,7 @@ const props = defineProps({
 });
 
 const status = ref('loading');
+const provider = computed(() => github.currentProviderConfig());
 const schema = computed(() => props.name ? getSchemaByName(props.config, props.name) : null);
 const extension = computed(() => schema.value?.extension ?? /(?:\.([^.]+))?$/.exec(props.path)[1]);
 const mode = computed(() => props.format || schema.value?.format || 'raw');
@@ -481,4 +482,3 @@ watch(() => model.value, (newValue, oldValue) => {
 }, { deep: true });
 
 </script>
-

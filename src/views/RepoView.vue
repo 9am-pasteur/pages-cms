@@ -18,7 +18,7 @@
               <template #trigger>
                 <button class="btn group-[.dropdown-active]:bg-neutral-100 dark:group-[.dropdown-active]:bg-neutral-850 w-full">
                   <div class="flex items-center gap-x-3 w-full truncate -ml-1 lg:-ml-1.5">
-                    <img class="h-10 w-10 rounded-lg" :src="'https://github.com/' + props.owner + '.png'" alt="Owner's avatar"/>
+                    <img class="h-10 w-10 rounded-lg" :src="avatarUrl" alt="Owner's avatar"/>
                     <div class="text-left overflow-hidden">
                       <div class="font-medium truncate">{{ props.repo }}</div>
                       <div class="truncate text-xs">{{ props.branch }}</div>
@@ -31,13 +31,13 @@
                 <ul>
                   <li><div class="font-medium text-xs pb-1 px-3 text-neutral-400 dark:text-neutral-500">Owner & Repository</div></li>
                   <li>
-                    <a class="link w-full" :href="`https://github.com/${props.owner}`" target="_blank">
+                    <a class="link w-full" :href="provider.links.profile(props.owner)" target="_blank">
                       <span class="truncate" :title="props.owner">{{ props.owner }}</span>
                       <Icon name="ExternalLink" class="h-4 w-4 stroke-2 shrink-0 ml-auto text-neutral-400 dark:text-neutral-500"/>
                     </a>
                   </li>
                   <li>
-                    <a class="link w-full" :href="`https://github.com/${props.owner}/${props.repo}`" target="_blank">
+                    <a class="link w-full" :href="provider.links.repo(props.owner, props.repo)" target="_blank">
                       <span class="truncate" :title="props.repo">{{ props.repo }}</span>
                       <Icon name="ExternalLink" class="h-4 w-4 stroke-2 shrink-0 ml-auto text-neutral-400 dark:text-neutral-500"/>
                     </a>
@@ -179,6 +179,14 @@ const props = defineProps({
   branch: String,
   path: String,
   name: String
+});
+
+const provider = computed(() => github.currentProviderConfig());
+const avatarUrl = computed(() => {
+  const base = provider.value.id === 'github'
+    ? 'https://github.com'
+    : (import.meta.env.VITE_GITLAB_BASE || 'https://gitlab.com');
+  return `${base}/${props.owner}.png`;
 });
 
 const branches = ref([]);

@@ -1,3 +1,9 @@
 BASE_URL = "http://localhost:8788"
+# GitHub OAuth App (not GitHub App) credentials
 GITHUB_CLIENT_ID = "XXX"
 GITHUB_CLIENT_SECRET = "XXX"
+# GitLab OAuth App (PKCE, secret optional)
+GITLAB_CLIENT_ID = "XXX"
+# If you use self-hosted GitLab, set these; otherwise omit.
+# GITLAB_BASE = "https://gitlab.example.com"
+# GITLAB_API_BASE = "https://gitlab.example.com/api/v4"
