@@ -136,7 +136,7 @@
                       <template #content>
                         <ul>
                           <li>
-                            <a class="link w-full" :href="`${schema.siteprefix}${item.path.replace(/.*?\/([^\/]+)\.md$/,'$1')}${schema.sitepostfix}`" target="_blank">
+                            <a class="link w-full" :href="`${schema.siteprefix}${item.path.replace(/.*?\/([^\/]+)\.md$/,'$1')}${schema.sitesuffix}`" target="_blank">
                               <div class="truncate">See file on IASA</div>
                               <Icon name="ExternalLink" class="h-4 w-4 stroke-2 shrink-0 ml-auto text-neutral-400 dark:text-neutral-500"/>
                             </a>
