@@ -59,6 +59,8 @@ const status = ref('');
 const provider = computed(() => github.currentProviderConfig());
 const commitsSafe = computed(() => {
   return (commits.value || []).map((c) => {
+    // GitHub shape: commit.commit.author.date, commit.html_url, commit.author.avatar_url
+    // GitLab shape: created_at, web_url, author_name, author_email
     const date = c.commit?.author?.date || c.created_at || c.authored_date || null;
     const message = c.commit?.message || c.title || '';
     const url = c.html_url || c.web_url || '#';

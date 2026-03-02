@@ -12,6 +12,31 @@ It allows you to edit your website's content directly on GitHub via a user-frien
 
 For full documentation, go to [pagescms.org/docs](https://pagescms.org/docs)
 
+### Rich text editor options
+
+Pages CMS (Vue版) では、`rich-text` フィールドに対して 2 種類のエディタを選べます。
+
+- **TipTap (既定)**: 軽量でMarkdown↔HTML変換を経由する現行実装。  
+- **CKEditor 4 (オプション)**: 既存HTMLをなるべく壊さず編集したい場合に有効。  
+  - `.pages.yml` のフィールド定義で `options.editor: ckeditor4` を指定。  
+  - CKEditor 4.22.1 を `public/js/ckeditor/ckeditor.js` として同梱し、必要なプラグイン（例: `plugins/cloudinary`）を配置してください。  
+  - Cloudinary メディア挿入は2通り:  
+    1. **独自ダイアログをリバースプロキシ**: `CLOUDINARY_DIALOG_URL` を環境変数に指定すると、そのURLを同一オリジンで iframe 表示し、`insertIt()` を呼び出せます。  
+    2. **Cloudinary Media Library Widget (MLW)**: 環境変数 `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`（任意で `CLOUDINARY_USERNAME`）を設定すると、公式MLWがCKEditorダイアログ内で開き、既存アセットの検索・選択・アップロードが可能になります。  
+  - Tip: CKEditor 4.22.1 は OSS 版なのでライセンス的に同梱可能（LTS版は商用ライセンスが必要）。  
+
+設定例（.pages.yml の抜粋）:
+
+```yaml
+fields:
+  - name: body
+    type: rich-text
+    label: Body
+    options:
+      editor: ckeditor4   # 省略時は tiptap
+      format: markdown    # または html
+```
+
 ## How it works
 
 Pages CMS is built as a [Vue.js](https://vuejs.org/) app with a few serverless functions to handle the Github login.
