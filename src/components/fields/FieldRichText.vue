@@ -1,5 +1,6 @@
 <template>
-  <TipTap
+  <component
+    :is="editorComponent"
     :model-value="modelValue"
     @update:modelValue="$emit('update:modelValue', $event)"
     :format="(field.options && field.options.format) || 'markdown'"
@@ -14,9 +15,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import useFieldValidation from '@/composables/useFieldValidation';
 import TipTap from '@/components/file/TipTap.vue';
+import CkEditor4 from '@/components/file/CkEditor4.vue';
 import Icon from '@/components/utils/Icon.vue';
 
 const { validateRequired, validatePattern, validateLength } = useFieldValidation();
@@ -24,6 +26,11 @@ const { validateRequired, validatePattern, validateLength } = useFieldValidation
 const props = defineProps({
   field: Object,
   modelValue: String,
+});
+
+// editor 切替。デフォルトは TipTap、options.editor が "ckeditor4" なら CKEditor4。
+const editorComponent = computed(() => {
+  return props.field?.options?.editor === 'ckeditor4' ? CkEditor4 : TipTap;
 });
 
 const errors = ref([]);

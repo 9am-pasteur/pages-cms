@@ -5,20 +5,20 @@
       <div class="spinner-black-sm"></div>
     </button>
   </template>
-  <template v-else-if="commits.length">
+  <template v-else-if="commitsSafe.length">
     <Dropdown :dropdownClass="'!max-w-none !lg:max-w-full min-w-36'">
       <template #trigger>
         <button class="btn-secondary group-[.dropdown-active]:bg-neutral-100 dark:group-[.dropdown-active]:bg-neutral-850" :class="[ elementClass ]">
-          <div class="truncate"><span class="hidden lg:inline">Updated </span>{{ $filters.fromNow(commits[0].commit.author.date) }}</div>
+          <div class="truncate"><span class="hidden lg:inline">Updated </span>{{ $filters.fromNow(commitsSafe[0].date) }}</div>
         </button>
       </template>
       <template #content>
           <ul>
-            <li v-for="commit in commits.slice(0, 5)">
-              <a :href="commit.html_url" :title="commit.commit.message" target="_blank" class="link">
-                <img v-if="commit.author" :src="commit.author.avatar_url" class="h-5 w-5 rounded-full hidden lg:block"/>
+            <li v-for="commit in commitsSafe.slice(0, 5)">
+              <a :href="commit.url" :title="commit.message" target="_blank" class="link">
+                <img v-if="commit.avatar" :src="commit.avatar" class="h-5 w-5 rounded-full hidden lg:block"/>
                 <div class="truncate">
-                  <span class="truncate">{{ $filters.fromNow(commit.commit.author.date) }}</span>
+                  <span class="truncate">{{ $filters.fromNow(commit.date) }}</span>
                 </div>
                 <Icon name="ExternalLink" class="h-4 w-4 stroke-2 shrink-0 ml-auto text-neutral-400 dark:text-neutral-500"/>
               </a>
@@ -57,6 +57,17 @@ const props = defineProps({
 const commits = ref([]);
 const status = ref('');
 const provider = computed(() => github.currentProviderConfig());
+const commitsSafe = computed(() => {
+  return (commits.value || []).map((c) => {
+    // GitHub shape: commit.commit.author.date, commit.html_url, commit.author.avatar_url
+    // GitLab shape: created_at, web_url, author_name, author_email
+    const date = c.commit?.author?.date || c.created_at || c.authored_date || null;
+    const message = c.commit?.message || c.title || '';
+    const url = c.html_url || c.web_url || '#';
+    const avatar = c.author?.avatar_url || c.author_avatar_url || null;
+    return { date, message, url, avatar };
+  }).filter((c) => !!c.date);
+});
 
 const setHistory = async () => {
   status.value = 'loading';

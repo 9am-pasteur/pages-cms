@@ -7,3 +7,16 @@ GITLAB_CLIENT_ID = "XXX"
 # If you use self-hosted GitLab, set these; otherwise omit.
 # GITLAB_BASE = "https://gitlab.example.com"
 # GITLAB_API_BASE = "https://gitlab.example.com/api/v4"
+
+# CKEditor4 / Cloudinary (optional)
+# Provide either:
+#  - CLOUDINARY_DIALOG_URL: reverse-proxy an existing dialog (must be same origin after proxy)
+#  - or Cloudinary Media Library Widget credentials to use the built-in MLW:
+#      CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+#      CLOUDINARY_USERNAME (optional, used for MLW sign-in convenience)
+# If none are set, Cloudinary button will still render but MLW/remote dialog will be unavailable.
+# CLOUDINARY_DIALOG_URL = "https://onprem.example.com/scripts/cloudinary_dialog.pl"
+# CLOUDINARY_CLOUD_NAME = "your-cloud-name"
+# CLOUDINARY_API_KEY = "your-api-key"
+# CLOUDINARY_API_SECRET = "your-api-secret"
+# CLOUDINARY_USERNAME = "user@example.com"
