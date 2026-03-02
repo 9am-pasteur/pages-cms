@@ -150,7 +150,13 @@ const saveFile = async (token, owner, repo, branch, path, content, sha = null) =
       ...(sha ? { last_commit_id: sha } : {}),
     },
   });
-  return res.data;
+  // Normalize to GitHub-like shape expected by callers (content.path / content.sha)
+  return {
+    content: {
+      path: res.data.file_path || path,
+      sha: res.data.last_commit_id || res.data.content_sha || res.data.commit_id || null,
+    },
+  };
 };
 
 const deleteFile = async (token, owner, repo, branch, path, sha) => {
