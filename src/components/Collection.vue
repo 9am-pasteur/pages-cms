@@ -181,6 +181,13 @@
           </div>
         </div>
       </div>
+      <div ref="sentinel" class="h-1 w-full"></div>
+      <div v-if="hasMore" class="flex justify-center mt-4">
+        <button class="btn-sm" :disabled="isLoadingMore" @click="loadMore">
+          <span v-if="isLoadingMore">Loading…</span>
+          <span v-else>Load more</span>
+        </button>
+      </div>
       <!-- Utils -->
       <AddFolder
         ref="addFolderComponent"
@@ -212,7 +219,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch, computed } from 'vue';
+import { ref, reactive, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import lunr from 'lunr';
 import moment from 'moment';
@@ -251,10 +258,16 @@ const deleteComponent = ref(null);
 const deletePath = ref('');
 const deleteSha = ref('');
 const collection = ref(null);
+const currentPage = ref(1);
+const totalPages = ref(1);
+const isLoadingMore = ref(false);
+const isLoadingAll = ref(false);
+const sentinel = ref(null);
 const contents = computed(() => {
+  const list = collection.value || [];
   return {
-    files: collection.value.filter(item => item.type === 'blob'),
-    folders: collection.value.filter(item => item.type === 'tree')
+    files: list.filter(item => item.type === 'blob'),
+    folders: list.filter(item => item.type === 'tree')
   };
 });
 const schema = computed(() => props.config.content.find(item => item.name === props.name));
@@ -310,6 +323,69 @@ const view = reactive({
   filter_value: null,
   search: '',
 });
+
+const hasMore = computed(() => currentPage.value < totalPages.value);
+
+const loadMore = async () => {
+  if (isLoadingMore.value || !hasMore.value) return;
+  await loadPage(currentPage.value + 1, true);
+};
+
+const loadAllPages = async () => {
+  if (isLoadingAll.value || !hasMore.value) return;
+  isLoadingAll.value = true;
+  try {
+    while (hasMore.value) {
+      await loadMore();
+    }
+  } finally {
+    isLoadingAll.value = false;
+    setSearch(); // rebuild index with full data
+  }
+};
+let observer = null;
+
+const setupObserver = () => {
+  if (!('IntersectionObserver' in window)) return;
+  if (observer) observer.disconnect();
+  observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        loadMore();
+      }
+    });
+  }, { rootMargin: '200px 0px 200px 0px' });
+  if (sentinel.value) {
+    observer.observe(sentinel.value);
+  }
+};
+
+onMounted(() => {
+  nextTick(() => setupObserver());
+});
+
+onUnmounted(() => {
+  if (observer) observer.disconnect();
+});
+
+watch(hasMore, (val) => {
+  if (val) {
+    nextTick(() => setupObserver());
+  } else if (observer && sentinel.value) {
+    observer.unobserve(sentinel.value);
+  }
+});
+
+watch(() => sentinel.value, (val) => {
+  if (val) nextTick(() => setupObserver());
+});
+
+watch(() => view.search, async (val) => {
+  // If user starts typing and we haven't loaded all pages, load the rest to make search complete
+  if (val && hasMore.value) {
+    await loadAllPages();
+  }
+});
 // Content actually displayed, taking into account search & sort
 // TODO: add validation of fields in config (sort, fields, etc.), both here and in the settings editor
 const viewContents = computed(() => {
@@ -317,7 +393,11 @@ const viewContents = computed(() => {
   
   // Apply search filter
   if (view.search.trim()) {
-    const query = view.search.trim();
+    let query = view.search.trim();
+    // Auto-suffix wildcard for simple terms to improve partial matching (e.g., "Profes" -> "Profes*")
+    if (!/[*~]/.test(query) && !/[\s:]/.test(query) && query.length >= 3) {
+      query = `${query}*`;
+    }
     let searchResults = [];
 
     // Limit the edit distance for fuzzy search to avoid OOM crash
@@ -338,9 +418,19 @@ const viewContents = computed(() => {
       }
     }
 
-    viewFiles = searchResults.map(result => {
-      return viewFiles.find(item => item.filename === result.ref);
-    });
+    if (searchResults.length > 0) {
+      viewFiles = searchResults.map(result => {
+        return viewFiles.find(item => item.filename === result.ref);
+      });
+    } else {
+      // Fallback: simple substring match for languages where lunr tokenization is weak (e.g., Japanese)
+      const q = view.search.trim().toLowerCase();
+      viewFiles = viewFiles.filter((item) => {
+        return Object.values(item.fields || {}).some((v) => {
+          return typeof v === 'string' && v.toLowerCase().includes(q);
+        }) || (item.filename && item.filename.toLowerCase().includes(q));
+      });
+    }
   }
   
   // Apply sorting
@@ -444,37 +534,51 @@ const setView = () => {
 
 const setCollection = async () => {
   status.value = 'loading';
+  collection.value = [];
+  currentPage.value = 1;
+  totalPages.value = 1;
+  await loadPage(1, false);
+  status.value = '';
+};
+
+const loadPage = async (page = 1, append = false) => {
+  if (append) isLoadingMore.value = true;
   const fullPath = route.query.folder ? route.query.folder : schema.value.path;
 
-  // Try index first (fast path). If not found, fall back to legacy full fetch.
+  // Try paged index first
   let files = null;
   let fromIndex = false;
   const collectionName = schema.value.name || schema.value.path?.split('/').filter(Boolean).pop();
   try {
-    const indexData = collectionName ? await indexes.fetchIndex(props.owner, props.repo, props.branch, collectionName) : null;
+    const indexData = collectionName ? await indexes.fetchIndexPage(props.owner, props.repo, props.branch, collectionName, page) : null;
     if (indexData && indexData.items?.length) {
       const folderFilter = route.query.folder ? route.query.folder.replace(/\/$/, '') : null;
       const mapped = indexes.toCollectionItems(indexData.items, folderFilter);
       files = [...mapped.files, ...mapped.folders];
       fromIndex = true;
+      const pageCount = indexData.meta?.page_count || 1;
+      totalPages.value = pageCount;
+      currentPage.value = page;
     }
   } catch (e) {
     console.warn('Index fetch failed, falling back to legacy fetch:', e);
   }
 
-  if (!files) {
+  if (!files && !append) {
     files = await github.getContents(props.owner, props.repo, props.branch, fullPath);
+    totalPages.value = 1;
+    currentPage.value = 1;
   }
 
   if (!files) {
+    if (append) isLoadingMore.value = false;
     status.value = 'error';
     return;
   }
 
   let errorCount = 0;
-  collection.value = files.map(file => {
+  const mappedFiles = files.map(file => {
     if (file.type === 'blob' && (extension.value === '' || file.filename?.endsWith(`.${extension.value}`) || file.name?.endsWith(`.${extension.value}`))) {
-      // When using index, fields come precomputed; otherwise parse frontmatter.
       let contentObject = file.fields || {};
       if (!fromIndex && serializedTypes.includes(format.value) && schema.value?.fields) {
         try {
@@ -499,7 +603,7 @@ const setCollection = async () => {
         sha: file.object?.oid || file.sha,
         filename: file.name || file.filename,
         path: file.path,
-        content: file.object?.text, // undefined for index-based entries (lazy load when opened)
+        content: file.object?.text,
         fields: contentObject,
         type: file.type,
       };
@@ -507,7 +611,7 @@ const setCollection = async () => {
       return file;
     }
   }).filter(item => item !== undefined);
-  // We warn the user some of the entries are messed up
+
   if (errorCount > 0) {
     const options = {
       delay: 10000,
@@ -520,10 +624,17 @@ const setCollection = async () => {
     notifications.notify(`Failed to parse frontmatter for ${errorCount} ${errorCount > 1 ? 'entries' : 'entry'}. Your settings may be wrong.`, 'error', options);
   }
 
-  setView();
-  setSearch();
+  if (append) {
+    collection.value = collection.value.concat(mappedFiles);
+  } else {
+    collection.value = mappedFiles;
+  }
 
-  status.value = '';
+  if (!append) {
+    setView();
+  }
+  setSearch();
+  if (append) isLoadingMore.value = false;
 };
 
 onMounted(() => {

@@ -6,11 +6,13 @@
 
 import github from '@/services/github';
 
-const memoryCache = new Map(); // key: owner/repo/branch/collection
+const memoryCache = new Map(); // full index cache key: owner/repo/branch/collection
+const partCache = new Map();   // part cache key: owner/repo/branch/collection/page
 
 const RESERVED_KEYS = new Set(['path', 'filename', 'sha', 'size', 'updated_at', 'collection']);
 
 const cacheKey = (owner, repo, branch, collection) => `${owner}/${repo}/${branch}/${collection}`;
+const partCacheKey = (owner, repo, branch, collection, page) => `${owner}/${repo}/${branch}/${collection}/part/${page}`;
 
 const parseIndex = (raw, sourcePath) => {
   const cleaned = raw && raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
@@ -83,6 +85,7 @@ const fetchIndexFile = async (owner, repo, branch, path) => {
   return null;
 };
 
+// Fetch entire index (eager). Used when caller explicitly wants full data.
 const fetchIndex = async (owner, repo, branch, collection) => {
   const key = cacheKey(owner, repo, branch, collection);
   if (memoryCache.has(key)) return memoryCache.get(key);
@@ -96,7 +99,7 @@ const fetchIndex = async (owner, repo, branch, collection) => {
     return baseParsed;
   }
 
-  // Try split parts
+  // Try split parts (eager, concatenates all)
   let part = 1;
   let items = [];
   let meta = null;
@@ -110,12 +113,45 @@ const fetchIndex = async (owner, repo, branch, collection) => {
     part += 1;
   }
   if (items.length > 0 && meta) {
-    const merged = { meta, items };
+    const pageCount = meta.page_count || (part - 1);
+    const merged = { meta: { ...meta, page_count: pageCount }, items };
     memoryCache.set(key, merged);
     return merged;
   }
 
   return null; // No index available
+};
+
+// Fetch one page (lazy). Prefer direct part fetch; fall back to single-file slice.
+const fetchIndexPage = async (owner, repo, branch, collection, page = 1) => {
+  const key = partCacheKey(owner, repo, branch, collection, page);
+  if (partCache.has(key)) return partCache.get(key);
+
+  // Try part file first (no eager loading)
+  const partPath = `indexes/${collection}.part${page}.json`;
+  const partRaw = await fetchIndexFile(owner, repo, branch, partPath);
+  const parsedPart = safeParse(partRaw, partPath);
+  if (parsedPart) {
+    partCache.set(key, parsedPart);
+    return parsedPart;
+  }
+
+  // If no parts exist, try single-file index and slice
+  const basePath = `indexes/${collection}.json`;
+  const baseRaw = await fetchIndexFile(owner, repo, branch, basePath);
+  const baseParsed = safeParse(baseRaw, basePath);
+  if (baseParsed) {
+    const meta = baseParsed.meta || {};
+    const pageSize = meta.page_size || baseParsed.items.length || 1;
+    const pageCount = meta.page_count || Math.ceil(baseParsed.items.length / pageSize) || 1;
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const sliced = { meta: { ...meta, page_count: pageCount, page, page_size: pageSize }, items: baseParsed.items.slice(start, end) };
+    partCache.set(key, sliced);
+    return sliced;
+  }
+
+  return null;
 };
 
 const toCollectionItems = (indexItems, folderFilter = null) => {
@@ -157,4 +193,5 @@ const toCollectionItems = (indexItems, folderFilter = null) => {
   };
 };
 
-export default { fetchIndex, toCollectionItems };
+export default { fetchIndex, fetchIndexPage, toCollectionItems };
+export { fetchIndexPage };
