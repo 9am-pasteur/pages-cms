@@ -94,6 +94,18 @@ To get a local version up and running:
 
 Cloudflare has very generous free tiers and can also host your actual website. It's a great alternative to GitHub Pages, Netlify or Vercel.
 
+## Optional: インデックス生成（大規模コレクション向け）
+
+Pages CMS で大きなコレクションを高速に一覧するために、リポジトリ側で frontmatter を抽出したインデックスを生成するサンプルを用意しています。Pages CMS 本体ではなく、**コンテンツを置いているリポジトリ**にコピーして使います。
+
+1. コンテンツリポジトリのルートに `scripts/build-index.mjs` を配置（`examples/indexer/build-index.mjs` をコピー）。  
+2. `.pages.yml` に `indexFields` / `indexAllFrontmatter` / `indexSplitSize`（デフォルト2MB）を必要に応じて追加。  
+3. `npm install yaml @ltd/j-toml` をコンテンツリポジトリで実行（Actions 内でのみ使うなら workflow 内に記述でOK）。  
+4. GitHub Actions を使う場合は `examples/indexer/github-workflow-example.yml` を `.github/workflows/index.yml` などにコピー。push で `indexes/<collection>.json`（サイズ超過時は part 分割）を自動生成・コミットします。  
+5. フロント側ではこのインデックスを読み、本文は遅延ロードする実装に差し替えてください（今後の対応予定）。
+
+インデックスのメタには `content_sha` と直近の `content_parents` を含めているので、フロントで楽観的変更（ローカルの保存・削除）とマージしやすい構造になっています。
+
 ## License
 
 Everything in this repo is released under the [MIT License](LICENSE).
