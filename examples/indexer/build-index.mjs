@@ -9,11 +9,13 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import YAML from 'yaml';
 import * as TOML from '@ltd/j-toml';
+import { glob } from 'glob';
 
 const exec = promisify(execFile);
 const REPO_ROOT = process.cwd();
 const INDEX_DIR = path.join(REPO_ROOT, 'indexes');
 const DEFAULT_SPLIT_MB = 2;
+const DEFAULT_PAGE_SIZE = 200;
 const PARENTS_COUNT = 30;
 const SCHEMA_VERSION = 1;
 
@@ -35,6 +37,7 @@ async function main() {
   const rawConfig = await fs.readFile(pagesPath, 'utf8');
   const config = YAML.parse(rawConfig, { strict: false }) || {};
   const splitLimitMb = config.indexSplitSize ?? DEFAULT_SPLIT_MB;
+  const pageSize = config.indexPageSize ?? DEFAULT_PAGE_SIZE;
   const collections = (config.content || []).filter((item) => item?.type === 'collection');
   if (collections.length === 0) {
     console.warn('No collections defined in .pages.yml. Nothing to index.');
@@ -53,6 +56,7 @@ async function main() {
       contentParents,
       generatedAt,
       splitLimitMb,
+      pageSize,
     });
   }
 }
@@ -128,7 +132,7 @@ function getDateFromFilename(filename) {
   return undefined;
 }
 
-async function buildCollectionIndex({ collection, contentSha, contentParents, generatedAt, splitLimitMb }) {
+async function buildCollectionIndex({ collection, contentSha, contentParents, generatedAt, splitLimitMb, pageSize }) {
   const indexName = `${collection.name || path.basename(collection.path) || 'collection'}`;
   const dirPath = path.join(REPO_ROOT, collection.path || '');
   if (!(await dirExists(dirPath))) {
@@ -204,8 +208,10 @@ async function buildCollectionIndex({ collection, contentSha, contentParents, ge
       content_parents: contentParents,
       generated_at: generatedAt,
       schema_version: SCHEMA_VERSION,
+      items_total: sorted.length,
     },
     splitLimitMb,
+    pageSize,
   });
   console.log(`[ok] ${indexName}: ${items.length} items`);
 }
@@ -226,36 +232,58 @@ function sortItems(items, collection) {
   });
 }
 
-async function writeIndexFiles({ indexName, items, meta, splitLimitMb }) {
+async function writeIndexFiles({ indexName, items, meta, splitLimitMb, pageSize }) {
   const limitBytes = Math.max(1, splitLimitMb) * 1024 * 1024;
   const base = { meta, items };
   const json = JSON.stringify(base, null, 2);
-  if (Buffer.byteLength(json, 'utf8') <= limitBytes) {
+  const shouldSplit = items.length > pageSize || Buffer.byteLength(json, 'utf8') > limitBytes;
+  if (!shouldSplit) {
     const outPath = path.join(INDEX_DIR, `${indexName}.json`);
-    await fs.writeFile(outPath, json + '\n');
+    await removeParts(indexName); // clean stale parts
+    const outMeta = { ...meta, page_count: 1, page_size: items.length };
+    await fs.writeFile(outPath, JSON.stringify({ meta: outMeta, items }, null, 2) + '\n');
     return;
   }
+  // split path: clean legacy single file if present
+  await removeSingle(indexName);
+  const pageCount = Math.ceil(items.length / pageSize);
   let current = [];
   let part = 1;
   for (const item of items) {
     current.push(item);
     const candidate = JSON.stringify({ meta: { ...meta, page: part }, items: current }, null, 2);
-    if (Buffer.byteLength(candidate, 'utf8') > limitBytes) {
+    if (Buffer.byteLength(candidate, 'utf8') > limitBytes || current.length >= pageSize) {
       current.pop();
-      await flushPart(indexName, part, meta, current);
+      await flushPart(indexName, part, meta, current, pageSize, pageCount);
       part += 1;
       current = [item];
     }
   }
   if (current.length) {
-    await flushPart(indexName, part, meta, current);
+    await flushPart(indexName, part, meta, current, pageSize, pageCount);
+  }
+  // Optionally record total page_count in merged meta (parts carry page and page_size individually)
+}
+
+async function flushPart(indexName, part, meta, items, pageSize, pageCount) {
+  const payload = { meta: { ...meta, page: part, page_size: pageSize, page_count: pageCount }, items };
+  const outPath = path.join(INDEX_DIR, `${indexName}.part${part}.json`);
+  await fs.writeFile(outPath, JSON.stringify(payload, null, 2) + '\n');
+}
+
+async function removeSingle(indexName) {
+  const single = path.join(INDEX_DIR, `${indexName}.json`);
+  try {
+    await fs.unlink(single);
+  } catch (_) {
+    // ignore
   }
 }
 
-async function flushPart(indexName, part, meta, items) {
-  const payload = { meta: { ...meta, page: part }, items };
-  const outPath = path.join(INDEX_DIR, `${indexName}.part${part}.json`);
-  await fs.writeFile(outPath, JSON.stringify(payload, null, 2) + '\n');
+async function removeParts(indexName) {
+  const pattern = path.join(INDEX_DIR, `${indexName}.part*.json`);
+  const matches = await glob(pattern, { nodir: true });
+  await Promise.all(matches.map((p) => fs.unlink(p).catch(() => {})));
 }
 
 async function walkFiles(dir) {

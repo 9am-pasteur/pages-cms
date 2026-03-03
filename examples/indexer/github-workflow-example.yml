@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 18
       - name: Install deps
-        run: npm install --no-save --no-package-lock yaml @ltd/j-toml
+        run: npm install --no-save --no-package-lock yaml @ltd/j-toml glob
       - name: Build indexes
         run: node scripts/build-index.mjs
       - name: Commit indexes if changed
