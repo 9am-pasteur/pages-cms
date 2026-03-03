@@ -218,6 +218,7 @@ import lunr from 'lunr';
 import moment from 'moment';
 import useSchema from '@/composables/useSchema';
 import github from '@/services/github';
+import indexes from '@/services/indexes';
 import serialization from '@/services/serialization';
 import notifications from '@/services/notifications';
 import Dropdown from '@/components/utils/Dropdown.vue';
@@ -445,7 +446,25 @@ const setCollection = async () => {
   status.value = 'loading';
   const fullPath = route.query.folder ? route.query.folder : schema.value.path;
 
-  const files = await github.getContents(props.owner, props.repo, props.branch, fullPath);
+  // Try index first (fast path). If not found, fall back to legacy full fetch.
+  let files = null;
+  let fromIndex = false;
+  const collectionName = schema.value.name || schema.value.path?.split('/').filter(Boolean).pop();
+  try {
+    const indexData = collectionName ? await indexes.fetchIndex(props.owner, props.repo, props.branch, collectionName) : null;
+    if (indexData && indexData.items?.length) {
+      const folderFilter = route.query.folder ? route.query.folder.replace(/\/$/, '') : null;
+      const mapped = indexes.toCollectionItems(indexData.items, folderFilter);
+      files = [...mapped.files, ...mapped.folders];
+      fromIndex = true;
+    }
+  } catch (e) {
+    console.warn('Index fetch failed, falling back to legacy fetch:', e);
+  }
+
+  if (!files) {
+    files = await github.getContents(props.owner, props.repo, props.branch, fullPath);
+  }
 
   if (!files) {
     status.value = 'error';
@@ -454,9 +473,10 @@ const setCollection = async () => {
 
   let errorCount = 0;
   collection.value = files.map(file => {
-    if (file.type === 'blob' && (extension.value === '' || file.name.endsWith(`.${extension.value}`))) {
-      let contentObject = {};
-      if (serializedTypes.includes(format.value) && schema.value?.fields) {
+    if (file.type === 'blob' && (extension.value === '' || file.filename?.endsWith(`.${extension.value}`) || file.name?.endsWith(`.${extension.value}`))) {
+      // When using index, fields come precomputed; otherwise parse frontmatter.
+      let contentObject = file.fields || {};
+      if (!fromIndex && serializedTypes.includes(format.value) && schema.value?.fields) {
         try {
           contentObject = serialization.parse(file.object.text, { format: format.value, delimiters: schema.value.delimiters });
         } catch (error) {
@@ -465,12 +485,10 @@ const setCollection = async () => {
         }
       }
       if (!schema.value.fields || schema.value.fields.length === 0) {
-        // If no fields are defined in the schema, we fake a filename field
-        contentObject.filename = file.name;
+        contentObject.filename = file.name || file.filename;
       }
       if (!contentObject.date && (!schema.value.filename || schema.value.filename.startsWith('{year}-{month}-{day}'))) {
-        // If we couldn't get a date from the content and filenames have a date, we extract it
-        const filenameDate = getDateFromFilename(file.name);
+        const filenameDate = getDateFromFilename(file.name || file.filename);
         if (filenameDate) {
           const dateFormat = fieldsSchemas.value['date']?.options?.format ?? 'YYYY-MM-DD';
           contentObject.date = moment(filenameDate.string, 'YYYY-MM-DD').format(dateFormat);
@@ -478,10 +496,10 @@ const setCollection = async () => {
       }
 
       return {
-        sha: file.object.oid,
-        filename: file.name,
+        sha: file.object?.oid || file.sha,
+        filename: file.name || file.filename,
         path: file.path,
-        content: file.object.text,
+        content: file.object?.text, // undefined for index-based entries (lazy load when opened)
         fields: contentObject,
         type: file.type,
       };

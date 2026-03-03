@@ -1,0 +1,42 @@
+name: Build Pages CMS Indexes
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-cms-index-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install deps
+        run: npm install --no-save --no-package-lock yaml @ltd/j-toml
+      - name: Build indexes
+        run: node scripts/build-index.mjs
+      - name: Commit indexes if changed
+        run: |
+          if git status --porcelain | grep .; then
+            git config user.name "pages-cms-bot"
+            git config user.email "pages-cms-bot@example.com"
+            CONTENT_SHA=$(git rev-parse HEAD)
+            git add indexes
+            git commit -m "chore: update indexes (content @ ${CONTENT_SHA})"
+            git push
+          else
+            echo "No index changes"
+          fi
