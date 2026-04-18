@@ -8,11 +8,71 @@ import github from '@/services/github';
 
 const memoryCache = new Map(); // full index cache key: owner/repo/branch/collection
 const partCache = new Map();   // part cache key: owner/repo/branch/collection/page
+const localMutations = new Map(); // key -> array of { type, item, oldPath }
 
 const RESERVED_KEYS = new Set(['path', 'filename', 'sha', 'size', 'updated_at', 'collection']);
 
 const cacheKey = (owner, repo, branch, collection) => `${owner}/${repo}/${branch}/${collection}`;
 const partCacheKey = (owner, repo, branch, collection, page) => `${owner}/${repo}/${branch}/${collection}/part/${page}`;
+
+const cloneIndex = (index) => {
+  if (!index) return null;
+  return {
+    meta: { ...(index.meta || {}) },
+    items: Array.isArray(index.items) ? index.items.map((i) => ({ ...i })) : [],
+  };
+};
+
+const getMutations = (key) => localMutations.get(key) || [];
+
+const applyMutations = (index, mutations, pageNumber = null) => {
+  if (!index) return null;
+  const mutated = cloneIndex(index);
+  mutations.forEach((m) => {
+    const match = (item) => item.path === m.item?.path || item.path === m.oldPath;
+    switch (m.type) {
+      case 'add': {
+        // For paginated views, only inject new items into the first page to avoid duplication
+        if (pageNumber && pageNumber !== 1) break;
+        // Avoid duplicates; if exists, treat as update
+        const existing = mutated.items.findIndex(match);
+        if (existing !== -1) {
+          mutated.items[existing] = { ...mutated.items[existing], ...m.item };
+        } else {
+          mutated.items.unshift({ ...m.item });
+        }
+        break;
+      }
+      case 'update': {
+        const idx = mutated.items.findIndex(match);
+        if (idx !== -1) {
+          mutated.items[idx] = { ...mutated.items[idx], ...m.item, path: m.item?.path || mutated.items[idx].path };
+        }
+        // If not found in this page, skip to avoid leaking into other pages; full index will handle it.
+        break;
+      }
+      case 'delete': {
+        mutated.items = mutated.items.filter((item) => !match(item));
+        break;
+      }
+      default:
+        break;
+    }
+  });
+
+  const pageSize = mutated.meta?.page_size;
+  if (pageSize) {
+    mutated.meta.page_count = Math.max(1, Math.ceil(mutated.items.length / pageSize));
+  }
+  return mutated;
+};
+
+const applyMutation = (owner, repo, branch, collection, mutation) => {
+  const key = cacheKey(owner, repo, branch, collection);
+  const list = getMutations(key);
+  localMutations.set(key, [...list, mutation]);
+  // Keep cached server data untouched; mutations are applied on read.
+};
 
 const parseIndex = (raw, sourcePath) => {
   const cleaned = raw && raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
@@ -88,7 +148,9 @@ const fetchIndexFile = async (owner, repo, branch, path) => {
 // Fetch entire index (eager). Used when caller explicitly wants full data.
 const fetchIndex = async (owner, repo, branch, collection) => {
   const key = cacheKey(owner, repo, branch, collection);
-  if (memoryCache.has(key)) return memoryCache.get(key);
+  if (memoryCache.has(key)) {
+    return applyMutations(memoryCache.get(key), getMutations(key));
+  }
 
   // Try single file (preferred)
   const basePath = `indexes/${collection}.json`;
@@ -96,7 +158,7 @@ const fetchIndex = async (owner, repo, branch, collection) => {
   const baseParsed = safeParse(baseRaw, basePath);
   if (baseParsed) {
     memoryCache.set(key, baseParsed);
-    return baseParsed;
+    return applyMutations(baseParsed, getMutations(key));
   }
 
   // Try split parts (eager, concatenates all)
@@ -116,7 +178,14 @@ const fetchIndex = async (owner, repo, branch, collection) => {
     const pageCount = meta.page_count || (part - 1);
     const merged = { meta: { ...meta, page_count: pageCount }, items };
     memoryCache.set(key, merged);
-    return merged;
+    return applyMutations(merged, getMutations(key));
+  }
+
+  // No index available; return locally mutated empty index if mutations exist
+  const mutations = getMutations(key);
+  if (mutations.length > 0) {
+    const synthetic = { meta: { page_count: 1, page_size: mutations.length || 1 }, items: [] };
+    return applyMutations(synthetic, mutations);
   }
 
   return null; // No index available
@@ -125,7 +194,11 @@ const fetchIndex = async (owner, repo, branch, collection) => {
 // Fetch one page (lazy). Prefer direct part fetch; fall back to single-file slice.
 const fetchIndexPage = async (owner, repo, branch, collection, page = 1) => {
   const key = partCacheKey(owner, repo, branch, collection, page);
-  if (partCache.has(key)) return partCache.get(key);
+  const collectionKey = cacheKey(owner, repo, branch, collection);
+  const mutations = getMutations(collectionKey);
+  if (partCache.has(key)) {
+    return applyMutations(partCache.get(key), mutations, page);
+  }
 
   // Try part file first (no eager loading)
   const partPath = `indexes/${collection}.part${page}.json`;
@@ -133,7 +206,7 @@ const fetchIndexPage = async (owner, repo, branch, collection, page = 1) => {
   const parsedPart = safeParse(partRaw, partPath);
   if (parsedPart) {
     partCache.set(key, parsedPart);
-    return parsedPart;
+    return applyMutations(parsedPart, mutations, page);
   }
 
   // If no parts exist, try single-file index and slice
@@ -148,7 +221,13 @@ const fetchIndexPage = async (owner, repo, branch, collection, page = 1) => {
     const end = start + pageSize;
     const sliced = { meta: { ...meta, page_count: pageCount, page, page_size: pageSize }, items: baseParsed.items.slice(start, end) };
     partCache.set(key, sliced);
-    return sliced;
+    return applyMutations(sliced, mutations, page);
+  }
+
+  // If index missing but we have local mutations, synthesize a minimal page
+  if (mutations.length > 0) {
+    const synthetic = { meta: { page: 1, page_size: mutations.length || 1, page_count: 1 }, items: [] };
+    return applyMutations(synthetic, mutations, page);
   }
 
   return null;
@@ -194,4 +273,4 @@ const toCollectionItems = (indexItems, folderFilter = null) => {
 };
 
 export default { fetchIndex, fetchIndexPage, toCollectionItems };
-export { fetchIndexPage };
+export { fetchIndexPage, applyMutation };

@@ -225,7 +225,7 @@ import lunr from 'lunr';
 import moment from 'moment';
 import useSchema from '@/composables/useSchema';
 import github from '@/services/github';
-import indexes from '@/services/indexes';
+import indexes, { applyMutation } from '@/services/indexes';
 import serialization from '@/services/serialization';
 import notifications from '@/services/notifications';
 import Dropdown from '@/components/utils/Dropdown.vue';
@@ -479,9 +479,14 @@ function openRenameModal(item) {
 }
 
 const handleRenamed = (renamedData) => {
-  const { renamedPath, renamedSha } = renamedData;
+  const { renamedPath } = renamedData;
   const item = collection.value.find(item => item.path === renamePath.value);
   item.path = renamedPath;
+  // Propagate to local index mutations so other views stay in sync
+  const collectionName = schema.value.name || schema.value.path?.split('/').filter(Boolean).pop();
+  if (collectionName) {
+    applyMutation(props.owner, props.repo, props.branch, collectionName, { type: 'update', item: { ...item }, oldPath: renamePath.value });
+  }
 };
 
 function openDeleteModal(item) {
@@ -492,7 +497,12 @@ function openDeleteModal(item) {
 
 const handleDeleted = () => {
   const index = collection.value.findIndex(item => item.path === deletePath.value);
+  const deletedPath = deletePath.value;
   collection.value.splice(index, 1);
+  const collectionName = schema.value.name || schema.value.path?.split('/').filter(Boolean).pop();
+  if (collectionName) {
+    applyMutation(props.owner, props.repo, props.branch, collectionName, { type: 'delete', item: { path: deletedPath } });
+  }
 };
 
 function openAddFolderModal() {
@@ -571,8 +581,13 @@ const loadPage = async (page = 1, append = false) => {
   }
 
   if (!files) {
-    if (append) isLoadingMore.value = false;
-    status.value = 'error';
+    if (append) {
+      // Treat missing page as end-of-list instead of fatal error
+      totalPages.value = currentPage.value;
+      isLoadingMore.value = false;
+    } else {
+      status.value = 'error';
+    }
     return;
   }
 

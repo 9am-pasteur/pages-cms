@@ -162,6 +162,7 @@ import github from '@/services/github';
 import config from '@/services/config';
 import serialization from '@/services/serialization';
 import useSchema from '@/composables/useSchema';
+import { applyMutation } from '@/services/indexes';
 import CodeMirror from '@/components/file/CodeMirror.vue';
 import Datagrid from '@/components/file/Datagrid.vue';
 import Dropdown from '@/components/utils/Dropdown.vue';
@@ -197,6 +198,7 @@ const props = defineProps({
 const status = ref('loading');
 const provider = computed(() => github.currentProviderConfig());
 const schema = computed(() => props.name ? getSchemaByName(props.config, props.name) : null);
+const collectionName = computed(() => schema.value?.name || schema.value?.path?.split('/').filter(Boolean).pop());
 const extension = computed(() => schema.value?.extension ?? /(?:\.([^.]+))?$/.exec(props.path)[1]);
 const mode = computed(() => props.format || schema.value?.format || 'raw');
 const file = ref(null);
@@ -262,15 +264,34 @@ const createSingleFile = async (path) => {
 const handleRenamed = ({ renamedPath, renamedSha }) => {
   // Updating path/history to continue editing
   status.value = 'handling-renamed';
+  const oldPath = currentPath.value;
   router.replace({
     name: 'edit',
     params: { owner: props.owner, repo: props.repo, branch: props.branch, path: renamedPath } 
   });
   currentPath.value = renamedPath;
+  if (schema.value?.type === 'collection' && collectionName.value) {
+    applyMutation(props.owner, props.repo, props.branch, collectionName.value, {
+      type: 'update',
+      item: {
+        path: renamedPath,
+        filename: renamedPath.split('/').pop(),
+        sha: renamedSha || sha.value,
+      },
+      oldPath,
+    });
+  }
   // Status get reset in the watcher at the end
 };
 
 const handleDeleted = () => {
+  const deletedPath = currentPath.value;
+  if (schema.value?.type === 'collection' && collectionName.value) {
+    applyMutation(props.owner, props.repo, props.branch, collectionName.value, {
+      type: 'delete',
+      item: { path: deletedPath },
+    });
+  }
   router.push({ name: 'content', params: { name: props.name } });
 };
 
@@ -430,6 +451,24 @@ const save = async () => {
       router.replace({
         name: 'edit',
         params: { owner: props.owner, repo: props.repo, branch: props.branch, path: currentPath.value } 
+      });
+    }
+
+    // Reflect change into local index mutations for immediate list sync
+    if (schema.value?.type === 'collection' && collectionName.value) {
+      const indexedFields = (serializedTypes.includes(mode.value) && schema.value?.fields)
+        ? sanitizeObject(JSON.parse(JSON.stringify(model.value)))
+        : {};
+      applyMutation(props.owner, props.repo, props.branch, collectionName.value, {
+        type: sha.value ? 'update' : 'add',
+        item: {
+          path: currentPath.value,
+          filename: currentPath.value.split('/').pop(),
+          sha: saveData.content?.sha,
+          size: saveData.content?.size,
+          updated_at: new Date().toISOString(),
+          ...indexedFields,
+        },
       });
     }
 
