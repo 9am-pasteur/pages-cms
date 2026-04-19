@@ -52,8 +52,11 @@ export default function useSchema() {
         return false;
       case 'number':
         return null;
-      case 'date':
-        return moment().format('YYYY-MM-DD');
+      case 'date': {
+        const hasTime = field?.options?.time;
+        const format = field?.options?.format || (hasTime ? 'YYYY-MM-DDTHH:mm' : 'YYYY-MM-DD');
+        return moment().format(format);
+      }
       default:
         return '';
     }

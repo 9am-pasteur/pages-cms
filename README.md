@@ -38,6 +38,14 @@ fields:
       format: markdown    # または html
 ```
 
+### Date フィールドのデフォルト値と表示フォーマット
+
+- `type: date` で `options.time: true` を指定した場合、初期値は「現在日時」を `YYYY-MM-DDTHH:mm` で自動セット（これまでの `00:00` 固定を改善）。  
+- 保存フォーマットは `options.format` が優先され、未指定時は上記デフォルト。  
+- 一覧表示（`file/View.vue`）の表示フォーマットは `options.outputFormat` で上書き可能。未指定時の既定値:  
+  - `options.time: true` → `MMM D, YYYY - HH:mm`  
+  - `options.time: false` → `MMM D, YYYY`  
+
 ## How it works
 
 Pages CMS is built as a [Vue.js](https://vuejs.org/) app with a few serverless functions to handle the Github login.
