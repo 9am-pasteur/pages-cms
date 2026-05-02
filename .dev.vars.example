@@ -1,4 +1,10 @@
 BASE_URL = "http://localhost:8788"
+
+# Optional basic auth for Pages Functions preview
+# BASIC_AUTH = "false"
+# BASIC_USERNAME = "admin"
+# BASIC_PASSWORD = "change-me"
+
 # GitHub OAuth App (not GitHub App) credentials
 GITHUB_CLIENT_ID = "XXX"
 GITHUB_CLIENT_SECRET = "XXX"
@@ -20,3 +26,30 @@ GITLAB_CLIENT_ID = "XXX"
 # CLOUDINARY_API_KEY = "your-api-key"
 # CLOUDINARY_API_SECRET = "your-api-secret"
 # CLOUDINARY_USERNAME = "user@example.com"
+
+# Cloudflare Access JWT verification (required when using proxy_github_app mode)
+# CLOUDFLARE_ACCESS_TEAM_DOMAIN = "your-team.cloudflareaccess.com"
+# CLOUDFLARE_ACCESS_AUD = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# Optional explicit issuer override. Normally inferred from team domain.
+# CLOUDFLARE_ACCESS_ISSUER = "https://your-team.cloudflareaccess.com"
+
+# Authorization lists used by /api/bootstrap and proxy mode
+# Comma-separated emails (normalized to lowercase)
+# CMS_ADMIN_USERS = "alice@example.ac.jp,bob@example.ac.jp"
+# CMS_DENY_USERS = "suspended@example.ac.jp"
+
+# proxy_github_app path policy (comma-separated glob-like patterns)
+# Allowed paths should be narrow and content-only
+# CMS_PROXY_ALLOWED_PATHS = "content/articles/**,content/assets/**"
+# CMS_PROXY_DENIED_PATHS = ".cms/**,.github/**,scripts/**,config/**,package.json"
+
+# Fixed repository target for proxy_github_app
+# GITHUB_REPO_OWNER = "example-org"
+# GITHUB_REPO_NAME = "content-repo"
+# GITHUB_BRANCH = "main"
+
+# GitHub App (used by proxy_github_app backend)
+# IMPORTANT: this is the GitHub App private key PEM (multiline secret)
+# GITHUB_APP_ID = "123456"
+# GITHUB_APP_INSTALLATION_ID = "78901234"
+# GITHUB_APP_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"

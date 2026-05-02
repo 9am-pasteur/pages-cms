@@ -102,6 +102,98 @@ To get a local version up and running:
 
 Cloudflare has very generous free tiers and can also host your actual website. It's a great alternative to GitHub Pages, Netlify or Vercel.
 
+### 認証モード（2パターン）
+
+この実装は、`/api/bootstrap` の結果で利用可能モードを決定します。
+
+1. **Direct OAuth モード（従来）**
+- `CLOUDFLARE_ACCESS_TEAM_DOMAIN` 未設定。
+- ログイン画面で `GitHub` / `GitLab` を選び、従来どおり OAuth または PAT でアクセス。
+- クライアントが Git provider API に直接アクセス。
+
+2. **Cloudflare Access + `proxy_github_app` モード**
+- `CLOUDFLARE_ACCESS_TEAM_DOMAIN` を設定すると Access JWT 検証を有効化。
+- 非adminユーザーは `proxy_github_app` 固定。
+- adminユーザーは `github` / `gitlab` / `proxy_github_app` から選択可能。
+- `proxy_github_app` では Functions バックエンドが GitHub App installation token で GitHub API を実行。
+
+### `proxy_github_app` セットアップ（Cloudflare Pages）
+
+1. **Cloudflare Access を設定**
+- Access Application を対象URLに作成。
+- Policy は最低でも `Emails ending in`（組織ドメイン）を設定。
+- 必要に応じて `Email` または `External Evaluation` を AND 条件で追加。
+- `CLOUDFLARE_ACCESS_AUD` の確認:
+  - Cloudflare Zero Trust `Access` → `Applications`
+  - 対象 Application を `Edit`
+  - `Additional settings` → `Application Audience (AUD) Tag`
+  - `Token` に表示される値を `CLOUDFLARE_ACCESS_AUD` に設定
+
+2. **GitHub App を作成（詳細）**
+- GitHub 右上プロフィールから `Settings` → `Developer settings` → `GitHub Apps` → `New GitHub App`。
+- 入力:
+  - `GitHub App name`: 一意な名前
+  - `Homepage URL`: 任意（運用ページのURLなど）
+  - `Webhook`: 本構成では不要なら `Active` をOFF（Webhook URL未設定でも可）
+- Permissions（最小構成）:
+  - `Repository permissions > Metadata`: `Read-only`
+  - `Repository permissions > Contents`: `Read and write`
+  - それ以外は不要なら付与しない
+- `Create GitHub App` を保存。
+
+3. **Private Key を発行**
+- 作成した App の設定画面で `Private keys` セクションへ移動。
+- `Generate a private key` を押し、`.pem` をダウンロード。
+- この PEM は再表示不可なので、シークレットストアへ安全に保管。
+
+4. **App を対象リポジトリにインストール**
+- App 設定画面で `Install App` → インストール先（Organization/User）を選択。
+- `Only select repositories` を選び、CMS対象の repository のみ選択して install。
+- 複数repoに不要に入れない（漏えい時影響を限定するため）。
+
+5. **App ID / Installation ID の取得**
+- `App ID`:
+  - App設定画面の `About` 付近に表示される値を使う。
+- `Installation ID`:
+  - 方法A（目視）: インストール設定ページのURL末尾の数値を使う。  
+    - 組織: `https://github.com/organizations/<org>/settings/installations/<installation_id>`  
+    - ユーザー: `https://github.com/settings/installations/<installation_id>`  
+  - 方法B（API）: REST API で `GET /repos/{owner}/{repo}/installation` などを使って取得。
+  - このプロジェクトでは `GITHUB_APP_INSTALLATION_ID` に数値IDを設定する。
+
+6. **Pages の Variables/Secrets を設定**
+- Access検証:
+  - `CLOUDFLARE_ACCESS_TEAM_DOMAIN`
+  - `CLOUDFLARE_ACCESS_AUD`
+  - `CLOUDFLARE_ACCESS_ISSUER`（通常は不要）
+- 認可:
+  - `CMS_ADMIN_USERS`
+  - `CMS_DENY_USERS`（任意）
+- proxy制限:
+  - `CMS_PROXY_ALLOWED_PATHS`（例: `content/articles/**,content/assets/**`）
+  - `CMS_PROXY_DENIED_PATHS`（例: `.cms/**,.github/**,scripts/**,config/**,package.json`）
+- 固定repo:
+  - `GITHUB_REPO_OWNER`
+  - `GITHUB_REPO_NAME`
+  - `GITHUB_BRANCH`
+- GitHub App:
+  - `GITHUB_APP_ID`
+  - `GITHUB_APP_INSTALLATION_ID`
+  - `GITHUB_APP_PRIVATE_KEY`
+
+7. **動作確認**
+- `/api/bootstrap` で `allowedModes` を確認。
+- 非adminでログインして `proxy_github_app` のみになることを確認。
+- 許可外パスへの保存が `403` になることを確認。
+- adminでログインしてモード選択が出ることを確認。
+- `proxy_github_app` で保存後、GitHub 側の commit が App 主体で記録されることを確認。
+
+8. **ローテーション（運用）**
+- Private key を定期的に再発行し、`GITHUB_APP_PRIVATE_KEY` を更新。
+- 事故時は App の key を失効（削除）し、必要なら App を uninstall してアクセス遮断。
+
+設定値のひな型は [examples/cloudflare/wrangler.toml.example](/home/hteru/pages-cms/examples/cloudflare/wrangler.toml.example) も参照してください。
+
 ## Optional: インデックス生成（大規模コレクション向け）
 
 Pages CMS で大きなコレクションを高速に一覧するために、リポジトリ側で frontmatter を抽出したインデックスを生成するサンプルを用意しています。Pages CMS 本体ではなく、**コンテンツを置いているリポジトリ**にコピーして使います。

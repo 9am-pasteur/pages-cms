@@ -1,0 +1,126 @@
+import axios from 'axios';
+
+const DEFAULT_BASE_PATH = '/api/proxy/github_app/v1';
+
+let basePath = DEFAULT_BASE_PATH;
+
+const buildUrl = (path) => `${basePath}${path}`;
+
+const getBootstrap = async () => {
+  const res = await axios.get(buildUrl('/bootstrap'));
+  return res.data;
+};
+
+const setBasePath = (value) => {
+  if (value && typeof value === 'string') {
+    basePath = value;
+  }
+};
+
+const getProfile = async () => {
+  const data = await getBootstrap();
+  return { email: data?.auth?.email || '', role: data?.auth?.isAdmin ? 'admin' : 'editor' };
+};
+
+const getOrganizations = async () => [];
+const searchRepos = async (token, query = '') => {
+  const data = await getBootstrap();
+  const owner = data?.repo?.owner || '';
+  const name = data?.repo?.name || '';
+  const fullName = owner && name ? `${owner}/${name}` : '';
+  const q = String(query || '').trim().toLowerCase();
+  if (!fullName) return { items: [] };
+  if (q && !fullName.toLowerCase().includes(q) && !name.toLowerCase().includes(q) && !owner.toLowerCase().includes(q)) {
+    return { items: [] };
+  }
+  return {
+    items: [
+      {
+        id: fullName,
+        name,
+        full_name: fullName,
+        owner: { login: owner },
+        private: true,
+        default_branch: data?.repo?.branch || 'main',
+        description: 'Proxy repository',
+        pushed_at: new Date().toISOString(),
+        permissions: { push: true },
+      },
+    ],
+  };
+};
+const getRepo = async () => {
+  const data = await getBootstrap();
+  const owner = data?.repo?.owner || '';
+  const name = data?.repo?.name || '';
+  const fullName = owner && name ? `${owner}/${name}` : '';
+  return {
+    full_name: fullName,
+    owner: { login: owner },
+    name,
+    default_branch: data?.repo?.branch || 'main',
+    permissions: { push: true },
+  };
+};
+const copyRepoTemplate = async () => null;
+const getBranch = async (token, owner, repo, branch) => ({
+  name: branch,
+  protected: false,
+});
+const getBranches = async () => {
+  const data = await getBootstrap();
+  return [{ name: data?.repo?.branch || 'main', protected: false }];
+};
+const createBranch = async () => null;
+
+const getContents = async (token, owner, repo, branch = 'HEAD', path = '') => {
+  const res = await axios.get(buildUrl('/files/list'), { params: { owner, repo, branch, path } });
+  return res.data;
+};
+
+const getFile = async (token, owner, repo, branch = null, path, raw = false) => {
+  const res = await axios.get(buildUrl('/files/get'), { params: { owner, repo, branch, path, raw } });
+  return res.data;
+};
+
+const getCommits = async (token, owner, repo, branch, path) => {
+  const res = await axios.get(buildUrl('/files/commits'), { params: { owner, repo, branch, path } });
+  return res.data;
+};
+
+const saveFile = async (token, owner, repo, branch, path, content, sha = null, retryCreate = false) => {
+  const res = await axios.post(buildUrl('/files/save'), { owner, repo, branch, path, content, sha, retryCreate });
+  return res.data;
+};
+
+const renameFile = async (token, owner, repo, branch, oldPath, newPath) => {
+  const res = await axios.post(buildUrl('/files/rename'), { owner, repo, branch, oldPath, newPath });
+  return res.data;
+};
+
+const deleteFile = async (token, owner, repo, branch, path, sha) => {
+  const res = await axios.post(buildUrl('/files/delete'), { owner, repo, branch, path, sha });
+  return res.data;
+};
+
+const logout = async () => {};
+
+export default {
+  setBasePath,
+  getBootstrap,
+  getProfile,
+  getOrganizations,
+  searchRepos,
+  getRepo,
+  copyRepoTemplate,
+  getBranch,
+  getBranches,
+  createBranch,
+  getContents,
+  getFile,
+  getCommits,
+  saveFile,
+  renameFile,
+  deleteFile,
+  logout,
+};

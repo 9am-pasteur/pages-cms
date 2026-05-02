@@ -9,10 +9,12 @@ import notifications from '@/services/notifications';
 import providers from '@/config/providers';
 import githubProvider from '@/services/providers/github';
 import gitlabProvider from '@/services/providers/gitlab';
+import proxyGithubAppProvider from '@/services/providers/proxyGithubApp';
 
 const providerMap = {
   github: githubProvider,
   gitlab: gitlabProvider,
+  proxy_github_app: proxyGithubAppProvider,
 };
 
 const providerId = ref(localStorage.getItem('provider') || 'github');
@@ -20,6 +22,9 @@ const token = ref(localStorage.getItem('token') || null);
 const profile = ref(null);
 let runtimeConfigLoaded = false;
 let runtimeConfigPromise = null;
+let bootstrapCache = null;
+let bootstrapCacheTime = 0;
+const bootstrapCacheTtlMs = 30 * 1000;
 
 const getProviderConfig = (id) => providers.find((p) => p.id === id);
 const currentProvider = () => providerMap[providerId.value] || githubProvider;
@@ -166,4 +171,49 @@ const ensureRuntimeConfig = async () => {
   return runtimeConfigPromise;
 };
 
-export default { token, profile, providerId, providers, currentProviderConfig, setProvider, setToken, clearToken, getProfile, getOrganizations, searchRepos, getRepo, copyRepoTemplate, getBranch, getBranches, createBranch, getContents, getFile, getCommits, saveFile, renameFile, deleteFile, logout, exchangeCode, ensureRuntimeConfig };
+/**
+ * @returns {Promise<import('@/types/bootstrap').BootstrapResponse>}
+ */
+const getBootstrap = async (force = false) => {
+  const now = Date.now();
+  if (!force && bootstrapCache && (now - bootstrapCacheTime) < bootstrapCacheTtlMs) {
+    return bootstrapCache;
+  }
+  const res = await axios.get('/api/bootstrap');
+  bootstrapCache = res.data;
+  bootstrapCacheTime = now;
+  const proxyMode = (bootstrapCache.modes || []).find((mode) => mode.id === 'proxy_github_app');
+  if (proxyMode?.proxy?.basePath) {
+    proxyGithubAppProvider.setBasePath(proxyMode.proxy.basePath);
+  }
+  return bootstrapCache;
+};
+
+const getBootstrapSafe = async (force = false) => {
+  try {
+    return await getBootstrap(force);
+  } catch {
+    return null;
+  }
+};
+
+const syncProviderWithBootstrap = async () => {
+  const bootstrap = await getBootstrapSafe();
+  if (!bootstrap) return null;
+  const allowed = Array.isArray(bootstrap.allowedModes) ? bootstrap.allowedModes : [];
+  if (allowed.length === 0) return bootstrap;
+  if (!allowed.includes(providerId.value)) {
+    const fallback = bootstrap.defaultMode || allowed[0];
+    setProvider(fallback);
+    if (fallback === 'proxy_github_app') {
+      clearToken();
+    }
+  }
+  return bootstrap;
+};
+
+const getProxyBootstrap = async () => {
+  return proxyGithubAppProvider.getBootstrap();
+};
+
+export default { token, profile, providerId, providers, currentProviderConfig, setProvider, setToken, clearToken, getProfile, getOrganizations, searchRepos, getRepo, copyRepoTemplate, getBranch, getBranches, createBranch, getContents, getFile, getCommits, saveFile, renameFile, deleteFile, logout, exchangeCode, ensureRuntimeConfig, getBootstrap, getBootstrapSafe, syncProviderWithBootstrap, getProxyBootstrap };

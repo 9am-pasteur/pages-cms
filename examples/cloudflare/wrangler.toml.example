@@ -1,0 +1,48 @@
+# Example Wrangler config for local/dev usage with Pages Functions.
+# This project is typically deployed via Cloudflare Pages UI, but this file
+# helps document expected bindings and env layout in one place.
+
+name = "pages-cms"
+compatibility_date = "2026-05-03"
+pages_build_output_dir = "dist"
+
+[vars]
+# Base URL used by OAuth callback helper functions
+BASE_URL = "http://localhost:8788"
+
+# Optional: if using self-hosted GitLab
+# GITLAB_BASE = "https://gitlab.example.com"
+# GITLAB_API_BASE = "https://gitlab.example.com/api/v4"
+
+# Optional basic auth for preview
+# BASIC_AUTH = "false"
+# BASIC_USERNAME = "admin"
+# BASIC_PASSWORD = "change-me"
+
+# OAuth App credentials (direct mode)
+# GITHUB_CLIENT_ID = "xxxx"
+# GITHUB_CLIENT_SECRET = "xxxx"
+# GITLAB_CLIENT_ID = "xxxx"
+
+# Cloudflare Access JWT verification (proxy mode)
+# CLOUDFLARE_ACCESS_TEAM_DOMAIN = "your-team.cloudflareaccess.com"
+# CLOUDFLARE_ACCESS_AUD = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# CLOUDFLARE_ACCESS_ISSUER = "https://your-team.cloudflareaccess.com"
+
+# Role control
+# CMS_ADMIN_USERS = "alice@example.ac.jp,bob@example.ac.jp"
+# CMS_DENY_USERS = "blocked@example.ac.jp"
+
+# Proxy path policy
+# CMS_PROXY_ALLOWED_PATHS = "content/articles/**,content/assets/**"
+# CMS_PROXY_DENIED_PATHS = ".cms/**,.github/**,scripts/**,config/**,package.json"
+
+# Fixed repository target for proxy_github_app
+# GITHUB_REPO_OWNER = "example-org"
+# GITHUB_REPO_NAME = "content-repo"
+# GITHUB_BRANCH = "main"
+
+# GitHub App credentials (proxy_github_app)
+# GITHUB_APP_ID = "123456"
+# GITHUB_APP_INSTALLATION_ID = "78901234"
+# GITHUB_APP_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
