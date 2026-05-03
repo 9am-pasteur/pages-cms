@@ -81,7 +81,12 @@ const getRequiredEnv = (env, key) => {
 };
 
 const pemToArrayBuffer = (pem) => {
-  const stripped = pem
+  const normalizedPem = String(pem || '')
+    // Support env values pasted as one line with escaped newlines.
+    .replace(/\\n/g, '\n')
+    .trim();
+
+  const stripped = normalizedPem
     .replace(/-----BEGIN [^-]+-----/g, '')
     .replace(/-----END [^-]+-----/g, '')
     .replace(/\s+/g, '');
