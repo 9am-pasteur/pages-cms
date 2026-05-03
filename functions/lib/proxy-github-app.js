@@ -2,6 +2,7 @@ import { getProxyRepoConfig, resolvePathPolicy } from './access-auth';
 
 const textEncoder = new TextEncoder();
 const GITHUB_API_BASE = 'https://api.github.com';
+const GITHUB_USER_AGENT = 'pages-cms-proxy-github-app';
 
 const normalizePath = (input = '') => {
   const raw = String(input || '').replace(/\\/g, '/').trim();
@@ -136,6 +137,7 @@ const createInstallationToken = async (env) => {
     headers: {
       Authorization: `Bearer ${jwt}`,
       Accept: 'application/vnd.github+json',
+      'User-Agent': GITHUB_USER_AGENT,
       'X-GitHub-Api-Version': '2022-11-28',
     },
   });
@@ -163,6 +165,7 @@ const githubRequest = async (token, method, path, body = null, query = null) => 
       Authorization: `Bearer ${token}`,
       Accept: 'application/vnd.github+json',
       'Content-Type': 'application/json',
+      'User-Agent': GITHUB_USER_AGENT,
       'X-GitHub-Api-Version': '2022-11-28',
     },
     body: body ? JSON.stringify(body) : undefined,
