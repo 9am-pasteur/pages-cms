@@ -34,8 +34,13 @@ BASE_URL = "http://localhost:8788"
 # CMS_DENY_USERS = "blocked@example.ac.jp"
 
 # Proxy path policy
+# Write policy
 # CMS_PROXY_ALLOWED_PATHS = "content/articles/**,content/assets/**"
 # CMS_PROXY_DENIED_PATHS = ".cms/**,.github/**,scripts/**,config/**,package.json"
+# Read policy (extra readable paths in proxy mode)
+# Defaults to ".pages.yml,indexes/**" (+ write-allowed paths are readable)
+# CMS_PROXY_READ_ALLOWED_PATHS = ".pages.yml,indexes/**"
+# CMS_PROXY_READ_DENIED_PATHS = ""
 
 # Fixed repository target for proxy_github_app
 # GITHUB_REPO_OWNER = "example-org"

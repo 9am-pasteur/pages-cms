@@ -170,17 +170,30 @@ export const verifyAccessJwtFromRequest = async (request, env) => {
   };
 };
 
-export const resolvePathPolicy = (env) => {
-  const splitCsv = (value) =>
-    (value || '')
-      .split(',')
-      .map((entry) => entry.trim())
-      .filter(Boolean);
+const splitCsv = (value) =>
+  (value || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 
+export const resolveWritePathPolicy = (env) => {
   const allowed = splitCsv(env.CMS_PROXY_ALLOWED_PATHS || 'content/articles/**,content/assets/**');
   const denied = splitCsv(env.CMS_PROXY_DENIED_PATHS || '.cms/**,.github/**,scripts/**,config/**,package.json');
   return { allowed, denied };
 };
+
+export const resolveReadPathPolicy = (env) => {
+  const readAllowed = splitCsv(env.CMS_PROXY_READ_ALLOWED_PATHS || '.pages.yml,indexes/**');
+  const readDenied = splitCsv(env.CMS_PROXY_READ_DENIED_PATHS || '');
+  const writePolicy = resolveWritePathPolicy(env);
+  // Read permission includes write-allowed paths so editors can read what they can edit.
+  const allowed = Array.from(new Set([...readAllowed, ...writePolicy.allowed]));
+  const denied = Array.from(new Set([...readDenied, ...writePolicy.denied]));
+  return { allowed, denied };
+};
+
+// Backward compatible alias for existing imports.
+export const resolvePathPolicy = (env) => resolveWritePathPolicy(env);
 
 export const getProxyRepoConfig = (env) => ({
   owner: env.GITHUB_REPO_OWNER || '',
@@ -245,4 +258,3 @@ export const getModePolicy = (accessContext, env) => {
     defaultMode: 'proxy_github_app',
   };
 };
-

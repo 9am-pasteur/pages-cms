@@ -1,7 +1,8 @@
 import {
   getAccessContext,
   getProxyRepoConfig,
-  resolvePathPolicy,
+  resolveReadPathPolicy,
+  resolveWritePathPolicy,
 } from '../../../../lib/access-auth';
 
 const json = (body, status = 200) =>
@@ -30,7 +31,10 @@ export async function onRequestGet({ request, env, params }) {
         isAdmin: access.isAdmin,
       },
       repo: getProxyRepoConfig(env),
-      pathPolicy: resolvePathPolicy(env),
+      pathPolicy: {
+        read: resolveReadPathPolicy(env),
+        write: resolveWritePathPolicy(env),
+      },
       features: {
         // proxy mode must not expose settings mutations
         canEditConfig: false,
@@ -46,4 +50,3 @@ export async function onRequestGet({ request, env, params }) {
     );
   }
 }
-

@@ -39,9 +39,13 @@ GITLAB_CLIENT_ID = "XXX"
 # CMS_DENY_USERS = "suspended@example.ac.jp"
 
 # proxy_github_app path policy (comma-separated glob-like patterns)
-# Allowed paths should be narrow and content-only
+# Write policy: restrict mutations to content paths only
 # CMS_PROXY_ALLOWED_PATHS = "content/articles/**,content/assets/**"
 # CMS_PROXY_DENIED_PATHS = ".cms/**,.github/**,scripts/**,config/**,package.json"
+# Read policy: additional readable paths for proxy mode
+# If omitted, defaults to ".pages.yml,indexes/**" (+ write-allowed paths are always readable)
+# CMS_PROXY_READ_ALLOWED_PATHS = ".pages.yml,indexes/**"
+# CMS_PROXY_READ_DENIED_PATHS = ""
 
 # Fixed repository target for proxy_github_app
 # GITHUB_REPO_OWNER = "example-org"

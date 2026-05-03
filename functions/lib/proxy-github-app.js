@@ -1,4 +1,8 @@
-import { getProxyRepoConfig, resolvePathPolicy } from './access-auth';
+import {
+  getProxyRepoConfig,
+  resolveReadPathPolicy,
+  resolveWritePathPolicy,
+} from './access-auth';
 
 const textEncoder = new TextEncoder();
 const GITHUB_API_BASE = 'https://api.github.com';
@@ -67,8 +71,8 @@ const isPathAllowedByPolicy = (path, policy) => {
   return matchesAnyPattern(normalized, policy.allowed || []);
 };
 
-const ensurePathAllowed = (path, env) => {
-  const policy = resolvePathPolicy(env);
+const ensurePathAllowed = (path, env, mode = 'write') => {
+  const policy = mode === 'read' ? resolveReadPathPolicy(env) : resolveWritePathPolicy(env);
   if (!isPathAllowedByPolicy(path, policy)) {
     throw new Error(`Path is not allowed: ${path}`);
   }
@@ -216,11 +220,11 @@ export const getProxyContext = async (env, query = null) => {
   return { repo, token };
 };
 
-export const assertAllowedPath = (path, env) => ensurePathAllowed(path, env);
+export const assertAllowedPath = (path, env, mode = 'write') => ensurePathAllowed(path, env, mode);
 
 export const listFiles = async ({ env, query }) => {
   const { repo, token } = await getProxyContext(env, query);
-  const path = assertAllowedPath(query.path || '', env);
+  const path = assertAllowedPath(query.path || '', env, 'read');
   const ref = query.branch || repo.branch;
   const encodedPath = encodeURIComponent(path).replace(/%2F/g, '/');
   const data = await githubRequest(token, 'GET', `/repos/${repo.owner}/${repo.name}/contents/${encodedPath}`, null, { ref });
@@ -229,7 +233,7 @@ export const listFiles = async ({ env, query }) => {
 
 export const getFileFromRepo = async ({ env, query }) => {
   const { repo, token } = await getProxyContext(env, query);
-  const path = assertAllowedPath(query.path || '', env);
+  const path = assertAllowedPath(query.path || '', env, 'read');
   const ref = query.branch || repo.branch;
   const encodedPath = encodeURIComponent(path).replace(/%2F/g, '/');
   const data = await githubRequest(token, 'GET', `/repos/${repo.owner}/${repo.name}/contents/${encodedPath}`, null, { ref });
@@ -241,7 +245,7 @@ export const getFileFromRepo = async ({ env, query }) => {
 
 export const getCommitsForPath = async ({ env, query }) => {
   const { repo, token } = await getProxyContext(env, query);
-  const path = assertAllowedPath(query.path || '', env);
+  const path = assertAllowedPath(query.path || '', env, 'read');
   const sha = query.branch || repo.branch;
   const data = await githubRequest(token, 'GET', `/repos/${repo.owner}/${repo.name}/commits`, null, { sha, path });
   return data;
@@ -249,7 +253,7 @@ export const getCommitsForPath = async ({ env, query }) => {
 
 export const saveFileToRepo = async ({ env, body }) => {
   const { repo, token } = await getProxyContext(env, body);
-  const path = assertAllowedPath(body.path || '', env);
+  const path = assertAllowedPath(body.path || '', env, 'write');
   const branch = body.branch || repo.branch;
   const encodedPath = encodeURIComponent(path).replace(/%2F/g, '/');
   const data = await githubRequest(token, 'PUT', `/repos/${repo.owner}/${repo.name}/contents/${encodedPath}`, {
@@ -263,7 +267,7 @@ export const saveFileToRepo = async ({ env, body }) => {
 
 export const deleteFileFromRepo = async ({ env, body }) => {
   const { repo, token } = await getProxyContext(env, body);
-  const path = assertAllowedPath(body.path || '', env);
+  const path = assertAllowedPath(body.path || '', env, 'write');
   const branch = body.branch || repo.branch;
   if (!body.sha) {
     throw new Error('sha is required');
@@ -279,8 +283,8 @@ export const deleteFileFromRepo = async ({ env, body }) => {
 
 export const renameFileInRepo = async ({ env, body }) => {
   const { repo, token } = await getProxyContext(env, body);
-  const oldPath = assertAllowedPath(body.oldPath || '', env);
-  const newPath = assertAllowedPath(body.newPath || '', env);
+  const oldPath = assertAllowedPath(body.oldPath || '', env, 'write');
+  const newPath = assertAllowedPath(body.newPath || '', env, 'write');
   const branch = body.branch || repo.branch;
   const oldEncoded = encodeURIComponent(oldPath).replace(/%2F/g, '/');
   const oldData = await githubRequest(token, 'GET', `/repos/${repo.owner}/${repo.name}/contents/${oldEncoded}`, null, { ref: branch });
