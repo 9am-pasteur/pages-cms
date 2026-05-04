@@ -35,8 +35,11 @@ BASE_URL = "http://localhost:8788"
 
 # Proxy path policy
 # Write policy
+# If omitted, defaults are:
+#   CMS_PROXY_ALLOWED_PATHS = "content/articles/**,content/assets/**"
+#   CMS_PROXY_DENIED_PATHS = ".github/**,.gitlab-ci.yml,.gitlab/**"
 # CMS_PROXY_ALLOWED_PATHS = "content/articles/**,content/assets/**"
-# CMS_PROXY_DENIED_PATHS = ".cms/**,.github/**,scripts/**,config/**,package.json"
+# CMS_PROXY_DENIED_PATHS = ".github/**,.gitlab-ci.yml,.gitlab/**"
 # Read policy (extra readable paths in proxy mode)
 # Defaults to ".pages.yml,indexes/**" (+ write-allowed paths are readable)
 # CMS_PROXY_READ_ALLOWED_PATHS = ".pages.yml,indexes/**"

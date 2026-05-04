@@ -178,7 +178,8 @@ const splitCsv = (value) =>
 
 export const resolveWritePathPolicy = (env) => {
   const allowed = splitCsv(env.CMS_PROXY_ALLOWED_PATHS || 'content/articles/**,content/assets/**');
-  const denied = splitCsv(env.CMS_PROXY_DENIED_PATHS || '.cms/**,.github/**,scripts/**,config/**,package.json');
+  // Keep defaults minimal: block execution/automation paths by default.
+  const denied = splitCsv(env.CMS_PROXY_DENIED_PATHS || '.github/**,.gitlab-ci.yml,.gitlab/**');
   return { allowed, denied };
 };
 

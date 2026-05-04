@@ -173,8 +173,9 @@ Cloudflare has very generous free tiers and can also host your actual website. I
   - `CMS_DENY_USERS`（任意）
 - proxy制限:
   - 書き込み制限:
-    - `CMS_PROXY_ALLOWED_PATHS`（例: `content/articles/**,content/assets/**`）
-    - `CMS_PROXY_DENIED_PATHS`（例: `.cms/**,.github/**,scripts/**,config/**,package.json`）
+    - `CMS_PROXY_ALLOWED_PATHS`（未設定時: `content/articles/**,content/assets/**`）
+    - `CMS_PROXY_DENIED_PATHS`（未設定時: `.github/**,.gitlab-ci.yml,.gitlab/**`）
+    - `CMS_PROXY_DENIED_PATHS` は実行・自動化に直結するパスを最小限で拒否するデフォルトです。`.cms/**` や `scripts/**` などのプロジェクト固有パスは必要に応じて追加してください。
   - 読み取り制限:
     - `CMS_PROXY_READ_ALLOWED_PATHS`（任意。未設定時は `.pages.yml,indexes/**` を許可）
     - `CMS_PROXY_READ_DENIED_PATHS`（任意）

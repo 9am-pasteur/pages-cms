@@ -40,8 +40,11 @@ GITLAB_CLIENT_ID = "XXX"
 
 # proxy_github_app path policy (comma-separated glob-like patterns)
 # Write policy: restrict mutations to content paths only
+# If omitted, defaults are:
+#   CMS_PROXY_ALLOWED_PATHS = "content/articles/**,content/assets/**"
+#   CMS_PROXY_DENIED_PATHS = ".github/**,.gitlab-ci.yml,.gitlab/**"
 # CMS_PROXY_ALLOWED_PATHS = "content/articles/**,content/assets/**"
-# CMS_PROXY_DENIED_PATHS = ".cms/**,.github/**,scripts/**,config/**,package.json"
+# CMS_PROXY_DENIED_PATHS = ".github/**,.gitlab-ci.yml,.gitlab/**"
 # Read policy: additional readable paths for proxy mode
 # If omitted, defaults to ".pages.yml,indexes/**" (+ write-allowed paths are always readable)
 # CMS_PROXY_READ_ALLOWED_PATHS = ".pages.yml,indexes/**"
