@@ -60,8 +60,14 @@ const bootstrap = ref(null);
 const bootstrapError = ref('');
 const fallbackModes = directProviders.map((p) => ({ id: p.id, label: p.label, type: 'direct', enabled: true }));
 const availableModes = computed(() => {
-  const modes = bootstrap.value?.modes?.filter((m) => m.enabled) || fallbackModes;
-  return modes.map((mode) => {
+  const allModes = bootstrap.value?.modes?.filter((m) => m.enabled) || fallbackModes;
+  const allowedIds = Array.isArray(bootstrap.value?.allowedModes) ? bootstrap.value.allowedModes : null;
+  const modes = allowedIds
+    ? allModes.filter((mode) => allowedIds.includes(mode.id))
+    : allModes;
+  const resolved = modes.length > 0 ? modes : fallbackModes;
+
+  return resolved.map((mode) => {
     if (mode.id === 'proxy_github_app') {
       return { id: mode.id, label: 'Proxy (GitHub App)' };
     }
