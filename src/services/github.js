@@ -86,15 +86,20 @@ const handleForbiddenError = (error) => {
   notifications.notify(detail || 'You do not have permission to perform this action.', 'warning');
 };
 
-const withCatch = async (fn) => {
+const withCatch = async (fn, options = {}) => {
   try {
     return await fn();
   } catch (error) {
-    if (error?.response?.status === 401) {
+    const status = error?.response?.status;
+    const suppressStatuses = Array.isArray(options.suppressStatuses) ? options.suppressStatuses : [];
+    if (suppressStatuses.includes(status)) {
+      return null;
+    }
+    if (status === 401) {
       handleAuthError();
-    } else if (error?.response?.status === 403) {
+    } else if (status === 403) {
       handleForbiddenError(error);
-    } else if (error?.response?.status >= 400) {
+    } else if (status >= 400) {
       const detail = composeErrorNotification(extractErrorPayload(error));
       if (detail) {
         notifications.notify(detail, 'error');
@@ -120,9 +125,9 @@ const copyRepoTemplate = (...args) => withCatch(() => currentProvider().copyRepo
 const getBranch = (owner, name, branch) => withCatch(() => currentProvider().getBranch(token.value, owner, name, branch));
 const getBranches = (owner, name, perPage = 100, page = 1) => withCatch(() => currentProvider().getBranches(token.value, owner, name, perPage, page));
 const createBranch = (owner, repo, baseBranch, newBranchName) => withCatch(() => currentProvider().createBranch(token.value, owner, repo, baseBranch, newBranchName));
-const getContents = (owner, repo, branch = 'HEAD', path = '', useGraphql = true) => withCatch(() => currentProvider().getContents(token.value, owner, repo, branch, path, useGraphql));
-const getFile = (owner, repo, branch = null, path, raw = false) => withCatch(() => currentProvider().getFile(token.value, owner, repo, branch, path, raw));
-const getCommits = (owner, repo, branch, path) => withCatch(() => currentProvider().getCommits(token.value, owner, repo, branch, path));
+const getContents = (owner, repo, branch = 'HEAD', path = '', useGraphql = true, options = {}) => withCatch(() => currentProvider().getContents(token.value, owner, repo, branch, path, useGraphql), options);
+const getFile = (owner, repo, branch = null, path, raw = false, options = {}) => withCatch(() => currentProvider().getFile(token.value, owner, repo, branch, path, raw), options);
+const getCommits = (owner, repo, branch, path, options = {}) => withCatch(() => currentProvider().getCommits(token.value, owner, repo, branch, path), options);
 const saveFile = (owner, repo, branch, path, content, sha = null, retryCreate = false) => withCatch(() => currentProvider().saveFile(token.value, owner, repo, branch, path, content, sha, retryCreate));
 const renameFile = (owner, repo, branch, oldPath, newPath) => withCatch(() => currentProvider().renameFile(token.value, owner, repo, branch, oldPath, newPath));
 const deleteFile = (owner, repo, branch, path, sha) => withCatch(() => currentProvider().deleteFile(token.value, owner, repo, branch, path, sha));
