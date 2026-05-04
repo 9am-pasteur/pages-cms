@@ -1,19 +1,44 @@
 import axios from 'axios';
 
 const DEFAULT_BASE_PATH = '/api/proxy/github_app/v1';
+const BOOTSTRAP_CACHE_TTL_MS = 30 * 1000;
 
 let basePath = DEFAULT_BASE_PATH;
+let bootstrapCache = null;
+let bootstrapCacheTime = 0;
+let bootstrapInFlight = null;
 
 const buildUrl = (path) => `${basePath}${path}`;
 
-const getBootstrap = async () => {
-  const res = await axios.get(buildUrl('/bootstrap'));
-  return res.data;
+const getBootstrap = async (force = false) => {
+  const now = Date.now();
+  if (!force && bootstrapCache && (now - bootstrapCacheTime) < BOOTSTRAP_CACHE_TTL_MS) {
+    return bootstrapCache;
+  }
+
+  if (!force && bootstrapInFlight) {
+    return bootstrapInFlight;
+  }
+
+  bootstrapInFlight = axios.get(buildUrl('/bootstrap'))
+    .then((res) => {
+      bootstrapCache = res.data;
+      bootstrapCacheTime = Date.now();
+      return bootstrapCache;
+    })
+    .finally(() => {
+      bootstrapInFlight = null;
+    });
+
+  return bootstrapInFlight;
 };
 
 const setBasePath = (value) => {
   if (value && typeof value === 'string') {
     basePath = value;
+    bootstrapCache = null;
+    bootstrapCacheTime = 0;
+    bootstrapInFlight = null;
   }
 };
 
