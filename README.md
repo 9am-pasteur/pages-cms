@@ -102,22 +102,16 @@ To get a local version up and running:
 
 Cloudflare has very generous free tiers and can also host your actual website. It's a great alternative to GitHub Pages, Netlify or Vercel.
 
-### 認証モード（2パターン）
-
-この実装は、`/api/bootstrap` の結果で利用可能モードを決定します。
-
-1. **Direct OAuth モード（従来）**
-- `CLOUDFLARE_ACCESS_TEAM_DOMAIN` 未設定。
-- ログイン画面で `GitHub` / `GitLab` を選び、従来どおり OAuth または PAT でアクセス。
-- クライアントが Git provider API に直接アクセス。
-
-2. **Cloudflare Access + `proxy_github_app` モード**
-- `CLOUDFLARE_ACCESS_TEAM_DOMAIN` を設定すると Access JWT 検証を有効化。
-- 非adminユーザーは `proxy_github_app` 固定。
-- adminユーザーは `github` / `gitlab` / `proxy_github_app` から選択可能。
-- `proxy_github_app` では Functions バックエンドが GitHub App installation token で GitHub API を実行。
-
 ### `proxy_github_app` セットアップ（Cloudflare Pages）
+
+このセクションは、Cloudflare Access によるアクセス制限を使って、Git プロバイダのアカウントを持たない編集者にも権限を付与したい場合の**追加オプション**です。  
+通常の Pages CMS の使い方（GitHub/GitLab OAuth）だけでよければ、ここは読み飛ばせます。
+
+追加オプションを有効にするには、Cloudflare Access と代理アクセス用バックエンドの環境変数を設定します。現状の代理アクセスモードは `proxy_github_app`（GitHub App 経由）のみです。
+
+- `CLOUDFLARE_ACCESS_TEAM_DOMAIN` を設定すると、Cloudflare Access JWT 検証を有効化します。
+- 非adminユーザーは `proxy_github_app` 固定になります。
+- `email` claim が `CMS_ADMIN_USERS` に含まれるユーザーは、`github` / `gitlab` / `proxy_github_app` を選択できます。
 
 1. **Cloudflare Access を設定**
 - Access Application を対象URLに作成。
