@@ -121,6 +121,14 @@ Cloudflare has very generous free tiers and can also host your actual website. I
 
 1. **Cloudflare Access を設定**
 - Access Application を対象URLに作成。
+- Access Application の `Public hostname` は保護漏れ防止のため、次を必ず登録:
+  - `<PROJECT_SUBDOMAIN>.pages.dev`（本体）
+  - `*.<PROJECT_SUBDOMAIN>.pages.dev`（Preview/Branch 用）
+  - `<YOUR_CUSTOM_DOMAIN>`（カスタムドメイン利用時）
+  - 例: `pages-cms-cuw.pages.dev`, `*.pages-cms-cuw.pages.dev`, `cms.example.ac.jp`
+- 注意:
+  - `*.pages.dev` のような広域ワイルドカードは使えない（想定しない）。
+  - ワイルドカードのみでは本体ホストをカバーしないため、本体とワイルドカードの両方が必要。
 - Policy は最低でも `Emails ending in`（組織ドメイン）を設定。
 - 必要に応じて `Email` または `External Evaluation` を AND 条件で追加。
 - `CLOUDFLARE_ACCESS_AUD` の確認:
