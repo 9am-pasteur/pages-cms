@@ -1,4 +1,4 @@
-const json = (body, status = 500) =>
+const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
@@ -34,7 +34,7 @@ export const toHttpError = (error) => {
     };
   }
 
-  if (/Missing Access JWT|JWT issuer mismatch|JWT audience mismatch|JWT expired|Missing email claim/i.test(message)) {
+  if (/Missing Access JWT|JWT|Access JWT|Malformed JWT|Unsupported JWT alg|Invalid JWT signature|No verification key found|Failed to fetch access certs|Missing email claim/i.test(message)) {
     return {
       status: 401,
       body: errorBody({
@@ -160,4 +160,3 @@ export const respondWithMappedError = (error) => {
 };
 
 export const jsonResponse = json;
-
