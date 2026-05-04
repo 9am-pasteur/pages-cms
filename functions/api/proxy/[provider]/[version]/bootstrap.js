@@ -4,26 +4,21 @@ import {
   resolveReadPathPolicy,
   resolveWritePathPolicy,
 } from '../../../../lib/access-auth';
-
-const json = (body, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
+import { jsonResponse, respondWithMappedError } from '../../../../lib/api-errors';
 
 export async function onRequestGet({ request, env, params }) {
   const { provider, version } = params;
   if (provider !== 'github_app' || version !== 'v1') {
-    return json({ error: 'NOT_FOUND' }, 404);
+    return jsonResponse({ error: 'NOT_FOUND' }, 404);
   }
 
   try {
     const access = await getAccessContext(request, env);
     if (!access.accessEnabled) {
-      return json({ error: 'FORBIDDEN', message: 'Cloudflare Access mode is disabled' }, 403);
+      return jsonResponse({ error: 'FORBIDDEN', message: 'Cloudflare Access mode is disabled' }, 403);
     }
 
-    return json({
+    return jsonResponse({
       provider: 'github_app',
       version: 'v1',
       auth: {
@@ -41,12 +36,6 @@ export async function onRequestGet({ request, env, params }) {
       },
     });
   } catch (error) {
-    return json(
-      {
-        error: 'UNAUTHORIZED',
-        message: error.message || 'Unauthorized',
-      },
-      401
-    );
+    return respondWithMappedError(error);
   }
 }

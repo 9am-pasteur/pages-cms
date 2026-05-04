@@ -2,19 +2,14 @@ import {
   getAccessContext,
   getModePolicy,
 } from '../lib/access-auth';
-
-const json = (body, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
+import { jsonResponse, respondWithMappedError } from '../lib/api-errors';
 
 export async function onRequestGet({ request, env }) {
   try {
     const access = await getAccessContext(request, env);
     const policy = getModePolicy(access, env);
 
-    return json({
+    return jsonResponse({
       auth: {
         accessEnabled: access.accessEnabled,
         email: access.email || undefined,
@@ -25,13 +20,6 @@ export async function onRequestGet({ request, env }) {
       defaultMode: policy.defaultMode,
     });
   } catch (error) {
-    return json(
-      {
-        error: 'UNAUTHORIZED',
-        message: error.message || 'Unauthorized',
-      },
-      401
-    );
+    return respondWithMappedError(error);
   }
 }
-

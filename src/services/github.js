@@ -56,20 +56,34 @@ const handleAuthError = () => {
   router.push({ name: 'login' });
 };
 
-const extractErrorMessage = (error) => {
+const extractErrorPayload = (error) => {
   const data = error?.response?.data;
-  if (!data) return '';
-  if (typeof data === 'string') return data;
-  return data.message || data.error || '';
+  if (!data) return { message: '' };
+  if (typeof data === 'string') return { message: data };
+  return {
+    message: data.message || data.error || '',
+    hint: data.hint || '',
+    check: Array.isArray(data.check) ? data.check : [],
+  };
+};
+
+const composeErrorNotification = (payload) => {
+  const lines = [];
+  if (payload.message) lines.push(payload.message);
+  if (payload.hint) lines.push(payload.hint);
+  if (payload.check?.length) lines.push(`Check: ${payload.check.join(', ')}`);
+  return lines.filter(Boolean).join(' ');
 };
 
 const handleForbiddenError = (error) => {
-  const message = extractErrorMessage(error).toLowerCase();
-  if (message.includes('path is not allowed')) {
+  const payload = extractErrorPayload(error);
+  const message = String(payload.message || '').toLowerCase();
+  if (message.includes('path is not writable in proxy mode') || message.includes('path is not allowed')) {
     notifications.notify('This file can only be edited by administrators.', 'warning');
     return;
   }
-  notifications.notify('You do not have permission to perform this action.', 'warning');
+  const detail = composeErrorNotification(payload);
+  notifications.notify(detail || 'You do not have permission to perform this action.', 'warning');
 };
 
 const withCatch = async (fn) => {
@@ -80,6 +94,11 @@ const withCatch = async (fn) => {
       handleAuthError();
     } else if (error?.response?.status === 403) {
       handleForbiddenError(error);
+    } else if (error?.response?.status >= 400) {
+      const detail = composeErrorNotification(extractErrorPayload(error));
+      if (detail) {
+        notifications.notify(detail, 'error');
+      }
     }
     console.error(error);
     return null;
