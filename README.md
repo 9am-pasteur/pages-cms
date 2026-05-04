@@ -195,6 +195,11 @@ Cloudflare has very generous free tiers and can also host your actual website. I
 - 許可外パスへの保存が `403` になることを確認。
 - adminでログインしてモード選択が出ることを確認。
 - `proxy_github_app` で保存後、GitHub 側の commit が App 主体で記録されることを確認。
+- `proxy_github_app` での書き込みコミットには、commit message に以下の trailer が追加される:
+  - `Edited-by: <email>`
+  - `Actor-sub: <subject>`（取得できる場合）
+  - `Auth-provider: cloudflare-access`
+- `github` / `gitlab` の direct モードでは、これらの trailer は付与されない。
 
 8. **ローテーション（運用）**
 - Private key を定期的に再発行し、`GITHUB_APP_PRIVATE_KEY` を更新。
