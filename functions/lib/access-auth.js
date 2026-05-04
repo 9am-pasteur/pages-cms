@@ -204,13 +204,14 @@ export const getProxyRepoConfig = (env) => ({
 
 export const getAccessContext = async (request, env) => {
   if (!isAccessEnabled(env)) {
-    return { accessEnabled: false, email: '', isAdmin: false };
+    return { accessEnabled: false, email: '', subject: '', isAdmin: false };
   }
 
   const identity = await verifyAccessJwtFromRequest(request, env);
   return {
     accessEnabled: true,
     email: identity.email,
+    subject: String(identity?.payload?.sub || ''),
     isAdmin: identity.isAdmin,
   };
 };

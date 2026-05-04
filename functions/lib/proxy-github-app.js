@@ -214,6 +214,18 @@ const mapContentsToEntries = (value) => {
   }));
 };
 
+const buildCommitMessage = (base, actor = null) => {
+  const lines = [base];
+  if (actor?.email) {
+    lines.push('', `Edited-by: ${actor.email}`);
+  }
+  if (actor?.subject) {
+    lines.push(`Actor-sub: ${actor.subject}`);
+  }
+  lines.push('Auth-provider: cloudflare-access');
+  return lines.join('\n');
+};
+
 export const getProxyContext = async (env, query = null) => {
   const repo = assertRepoMatchesFixed(query, env);
   const token = await createInstallationToken(env);
@@ -251,13 +263,16 @@ export const getCommitsForPath = async ({ env, query }) => {
   return data;
 };
 
-export const saveFileToRepo = async ({ env, body }) => {
+export const saveFileToRepo = async ({ env, body, actor = null }) => {
   const { repo, token } = await getProxyContext(env, body);
   const path = assertAllowedPath(body.path || '', env, 'write');
   const branch = body.branch || repo.branch;
   const encodedPath = encodeURIComponent(path).replace(/%2F/g, '/');
   const data = await githubRequest(token, 'PUT', `/repos/${repo.owner}/${repo.name}/contents/${encodedPath}`, {
-    message: body.sha ? `Update ${path} (via Pages CMS)` : `Create ${path} (via Pages CMS)`,
+    message: buildCommitMessage(
+      body.sha ? `Update ${path} (via Pages CMS)` : `Create ${path} (via Pages CMS)`,
+      actor
+    ),
     content: body.content,
     branch,
     ...(body.sha ? { sha: body.sha } : {}),
@@ -265,7 +280,7 @@ export const saveFileToRepo = async ({ env, body }) => {
   return data;
 };
 
-export const deleteFileFromRepo = async ({ env, body }) => {
+export const deleteFileFromRepo = async ({ env, body, actor = null }) => {
   const { repo, token } = await getProxyContext(env, body);
   const path = assertAllowedPath(body.path || '', env, 'write');
   const branch = body.branch || repo.branch;
@@ -274,14 +289,14 @@ export const deleteFileFromRepo = async ({ env, body }) => {
   }
   const encodedPath = encodeURIComponent(path).replace(/%2F/g, '/');
   const data = await githubRequest(token, 'DELETE', `/repos/${repo.owner}/${repo.name}/contents/${encodedPath}`, {
-    message: `Delete ${path} (via Pages CMS)`,
+    message: buildCommitMessage(`Delete ${path} (via Pages CMS)`, actor),
     sha: body.sha,
     branch,
   });
   return data;
 };
 
-export const renameFileInRepo = async ({ env, body }) => {
+export const renameFileInRepo = async ({ env, body, actor = null }) => {
   const { repo, token } = await getProxyContext(env, body);
   const oldPath = assertAllowedPath(body.oldPath || '', env, 'write');
   const newPath = assertAllowedPath(body.newPath || '', env, 'write');
@@ -291,13 +306,13 @@ export const renameFileInRepo = async ({ env, body }) => {
 
   const newEncoded = encodeURIComponent(newPath).replace(/%2F/g, '/');
   const saved = await githubRequest(token, 'PUT', `/repos/${repo.owner}/${repo.name}/contents/${newEncoded}`, {
-    message: `Rename ${oldPath} to ${newPath} (via Pages CMS)`,
+    message: buildCommitMessage(`Rename ${oldPath} to ${newPath} (via Pages CMS)`, actor),
     content: oldData.content,
     branch,
   });
 
   await githubRequest(token, 'DELETE', `/repos/${repo.owner}/${repo.name}/contents/${oldEncoded}`, {
-    message: `Delete ${oldPath} (via Pages CMS)`,
+    message: buildCommitMessage(`Delete ${oldPath} (via Pages CMS)`, actor),
     sha: oldData.sha,
     branch,
   });

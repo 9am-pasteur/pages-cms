@@ -14,7 +14,11 @@ export async function onRequestPost({ request, env, params }) {
     }
 
     const body = await request.json();
-    const data = await renameFileInRepo({ env, body });
+    const data = await renameFileInRepo({
+      env,
+      body,
+      actor: { email: access.email, subject: access.subject },
+    });
     return jsonResponse(data);
   } catch (error) {
     return respondWithMappedError(error);

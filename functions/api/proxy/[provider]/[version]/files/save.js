@@ -14,7 +14,11 @@ export async function onRequestPost({ request, env, params }) {
     }
 
     const body = await request.json();
-    const data = await saveFileToRepo({ env, body });
+    const data = await saveFileToRepo({
+      env,
+      body,
+      actor: { email: access.email, subject: access.subject },
+    });
     return jsonResponse(data);
   } catch (error) {
     return respondWithMappedError(error);
