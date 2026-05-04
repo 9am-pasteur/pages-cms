@@ -56,12 +56,30 @@ const handleAuthError = () => {
   router.push({ name: 'login' });
 };
 
+const extractErrorMessage = (error) => {
+  const data = error?.response?.data;
+  if (!data) return '';
+  if (typeof data === 'string') return data;
+  return data.message || data.error || '';
+};
+
+const handleForbiddenError = (error) => {
+  const message = extractErrorMessage(error).toLowerCase();
+  if (message.includes('path is not allowed')) {
+    notifications.notify('This file can only be edited by administrators.', 'warning');
+    return;
+  }
+  notifications.notify('You do not have permission to perform this action.', 'warning');
+};
+
 const withCatch = async (fn) => {
   try {
     return await fn();
   } catch (error) {
-    if (error?.response && (error.response.status === 401 || error.response.status === 403)) {
+    if (error?.response?.status === 401) {
       handleAuthError();
+    } else if (error?.response?.status === 403) {
+      handleForbiddenError(error);
     }
     console.error(error);
     return null;
