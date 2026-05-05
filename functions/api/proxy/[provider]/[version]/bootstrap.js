@@ -24,6 +24,7 @@ export async function onRequestGet({ request, env, params }) {
       auth: {
         email: access.email,
         isAdmin: access.isAdmin,
+        roles: access.roles || [],
       },
       repo: getProxyRepoConfig(env),
       pathPolicy: {

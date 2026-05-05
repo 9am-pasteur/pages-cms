@@ -44,7 +44,10 @@ const setBasePath = (value) => {
 
 const getProfile = async () => {
   const data = await getBootstrap();
-  return { email: data?.auth?.email || '', role: data?.auth?.isAdmin ? 'admin' : 'editor' };
+  const roles = Array.isArray(data?.auth?.roles) && data.auth.roles.length > 0
+    ? data.auth.roles
+    : [data?.auth?.isAdmin ? 'admin' : 'editor'];
+  return { email: data?.auth?.email || '', role: roles[0], roles };
 };
 
 const getOrganizations = async () => [];

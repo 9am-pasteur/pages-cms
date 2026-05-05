@@ -28,7 +28,8 @@
  * @property {{
  *   accessEnabled: boolean,
  *   email?: string,
- *   isAdmin: boolean
+ *   isAdmin: boolean,
+ *   roles: string[]
  * }} auth
  * @property {(DirectModeDescriptor | ProxyModeDescriptor)[]} modes
  * @property {ModeId[]} allowedModes

@@ -14,6 +14,7 @@ export async function onRequestGet({ request, env }) {
         accessEnabled: access.accessEnabled,
         email: access.email || undefined,
         isAdmin: access.isAdmin,
+        roles: access.roles || [],
       },
       modes: policy.modes,
       allowedModes: policy.allowedModes,
