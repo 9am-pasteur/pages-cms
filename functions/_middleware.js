@@ -1,4 +1,6 @@
 // Basic auth middleware for Cloudflare Pages Functions (no Node.js built-ins).
+import { isAccessJwtValid } from './lib/access-auth';
+
 const encoder = new TextEncoder();
 
 /**
@@ -30,8 +32,34 @@ const errorHandler = async ({ next }) => {
 };
 
 const guardByBasicAuth = async ({ request, next, env }) => {
-  if (env.BASIC_AUTH !== 'true') {
+  const modeRaw = String(env.BASIC_AUTH || '').trim().toLowerCase();
+  const basicUser = env.BASIC_USERNAME || '';
+  const basicPass = env.BASIC_PASSWORD || '';
+
+  // Keep compatibility with original behavior: if credentials are missing, disable Basic auth.
+  if (!basicUser || !basicPass) {
     return await next();
+  }
+
+  const basicEnabled =
+    modeRaw === 'true' ||
+    modeRaw === 'on' ||
+    modeRaw === '1' ||
+    modeRaw === 'when_no_access';
+
+  if (!basicEnabled) {
+    return await next();
+  }
+
+  if (modeRaw === 'when_no_access') {
+    // If request already has a valid Cloudflare Access JWT, skip Basic auth.
+    // If Access is not configured or JWT is invalid/missing, fallback to Basic auth (safe side).
+    if (env.CLOUDFLARE_ACCESS_TEAM_DOMAIN) {
+      const validAccess = await isAccessJwtValid(request, env);
+      if (validAccess) {
+        return await next();
+      }
+    }
   }
 
   // Check header
@@ -72,8 +100,8 @@ const guardByBasicAuth = async ({ request, next, env }) => {
   const username = credentials.substring(0, index);
   const password = credentials.substring(index + 1);
   if (
-    !timingSafeEqual(env.BASIC_USERNAME, username) ||
-    !timingSafeEqual(env.BASIC_PASSWORD, password)
+    !timingSafeEqual(basicUser, username) ||
+    !timingSafeEqual(basicPass, password)
   ) {
     return new Response(
       'Invalid username or password.',

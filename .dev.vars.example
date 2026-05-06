@@ -2,6 +2,10 @@ BASE_URL = "http://localhost:8788"
 
 # Optional basic auth for Pages Functions preview
 # BASIC_AUTH = "false"
+# BASIC_AUTH modes:
+#   false            -> disabled
+#   true             -> always require Basic auth
+#   when_no_access   -> require Basic auth only when Cloudflare Access JWT is missing/invalid
 # BASIC_USERNAME = "admin"
 # BASIC_PASSWORD = "change-me"
 

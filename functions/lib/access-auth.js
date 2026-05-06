@@ -170,6 +170,18 @@ export const verifyAccessJwtFromRequest = async (request, env) => {
   };
 };
 
+export const isAccessJwtValid = async (request, env) => {
+  const token = request.headers.get('Cf-Access-Jwt-Assertion') || '';
+  if (!token) return false;
+  try {
+    const { payload } = await verifyJwtSignature(token, env);
+    assertJwtClaims(payload, env);
+    return !!payload;
+  } catch {
+    return false;
+  }
+};
+
 const splitCsv = (value) =>
   (value || '')
     .split(',')
