@@ -35,20 +35,23 @@ const guardByBasicAuth = async ({ request, next, env }) => {
   const modeRaw = String(env.BASIC_AUTH || '').trim().toLowerCase();
   const basicUser = env.BASIC_USERNAME || '';
   const basicPass = env.BASIC_PASSWORD || '';
-
-  // Keep compatibility with original behavior: if credentials are missing, disable Basic auth.
-  if (!basicUser || !basicPass) {
-    return await next();
-  }
-
-  const basicEnabled =
-    modeRaw === 'true' ||
-    modeRaw === 'on' ||
-    modeRaw === '1' ||
-    modeRaw === 'when_no_access';
+  const basicEnabled = modeRaw !== '' && modeRaw !== 'false';
 
   if (!basicEnabled) {
     return await next();
+  }
+
+  // Safe default: if Basic auth is enabled but credentials are incomplete, deny access.
+  if (!basicUser || !basicPass) {
+    return new Response(
+      'Basic auth is enabled but BASIC_USERNAME/BASIC_PASSWORD is not fully configured.',
+      {
+        status: 401,
+        headers: {
+          'WWW-Authenticate': 'Basic realm="Input username and password"',
+        },
+      }
+    );
   }
 
   if (modeRaw === 'when_no_access') {

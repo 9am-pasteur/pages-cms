@@ -4,8 +4,9 @@ BASE_URL = "http://localhost:8788"
 # BASIC_AUTH = "false"
 # BASIC_AUTH modes:
 #   false            -> disabled
-#   true             -> always require Basic auth
+#   (any other value)-> enable Basic auth (safe default)
 #   when_no_access   -> require Basic auth only when Cloudflare Access JWT is missing/invalid
+# When BASIC_AUTH is enabled, both BASIC_USERNAME and BASIC_PASSWORD are required.
 # BASIC_USERNAME = "admin"
 # BASIC_PASSWORD = "change-me"
 
