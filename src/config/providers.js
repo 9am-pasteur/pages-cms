@@ -1,15 +1,15 @@
-// Provider configuration for GitHub and GitLab. Values can be overridden via Vite env vars.
-const githubApi = import.meta.env.VITE_GITHUB_API_BASE || 'https://api.github.com';
-const gitlabApi = import.meta.env.VITE_GITLAB_API_BASE || 'https://gitlab.com/api/v4';
+// Provider configuration for GitHub and GitLab.
+const githubApi = 'https://api.github.com';
+const gitlabApi = 'https://gitlab.com/api/v4';
 
-const gitlabBase = import.meta.env.VITE_GITLAB_BASE || 'https://gitlab.com';
+const gitlabBase = 'https://gitlab.com';
 
 const providers = [
   {
     id: 'github',
     label: 'GitHub',
     apiBase: githubApi,
-    rawBase: import.meta.env.VITE_GITHUB_RAW_BASE || 'https://raw.githubusercontent.com',
+    rawBase: 'https://raw.githubusercontent.com',
     oauth: {
       authorizeUrl: 'https://github.com/login/oauth/authorize',
       tokenUrl: 'https://github.com/login/oauth/access_token',
@@ -36,7 +36,7 @@ const providers = [
     id: 'gitlab',
     label: 'GitLab',
     apiBase: gitlabApi,
-    rawBase: import.meta.env.VITE_GITLAB_RAW_BASE || gitlabBase,
+    rawBase: gitlabBase,
     oauth: {
       authorizeUrl: `${gitlabBase}/oauth/authorize`,
       tokenUrl: `${gitlabBase}/oauth/token`,

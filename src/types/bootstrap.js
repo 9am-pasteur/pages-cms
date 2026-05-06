@@ -33,7 +33,7 @@
  * }} auth
  * @property {(DirectModeDescriptor | ProxyModeDescriptor)[]} modes
  * @property {ModeId[]} allowedModes
- * @property {ModeId} defaultMode
+ * @property {ModeId | null} defaultMode
  */
 
 export {};

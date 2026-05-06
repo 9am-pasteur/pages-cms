@@ -4,8 +4,8 @@ export async function onRequestPost({ request, env }) {
     const { code, code_verifier, redirect_uri } = body || {};
     if (!code) return new Response('Missing code', { status: 400 });
 
-    const client_id = env.GITHUB_CLIENT_ID || env.VITE_GITHUB_CLIENT_ID;
-    const client_secret = env.GITHUB_CLIENT_SECRET || env.VITE_GITHUB_CLIENT_SECRET; // optional for PKCE
+    const client_id = env.GITHUB_CLIENT_ID;
+    const client_secret = env.GITHUB_CLIENT_SECRET; // optional for PKCE
     if (!client_id) return new Response('Missing client_id', { status: 500 });
 
     const params = new URLSearchParams({

@@ -1,7 +1,16 @@
 import axios from 'axios';
 
-const apiBase = import.meta.env.VITE_GITLAB_API_BASE || 'https://gitlab.com/api/v4';
-const gitlabBase = import.meta.env.VITE_GITLAB_BASE || 'https://gitlab.com';
+let apiBase = 'https://gitlab.com/api/v4';
+let gitlabBase = 'https://gitlab.com';
+
+const setRuntimeConfig = ({ base, apiBase: runtimeApiBase } = {}) => {
+  if (typeof base === 'string' && base.trim()) {
+    gitlabBase = base.replace(/\/$/, '');
+  }
+  if (typeof runtimeApiBase === 'string' && runtimeApiBase.trim()) {
+    apiBase = runtimeApiBase.replace(/\/$/, '');
+  }
+};
 
 const authHeaders = (token) => ({ Authorization: `Bearer ${token}` });
 const projectPath = (owner, repo) => encodeURIComponent(`${owner}/${repo}`);
@@ -181,4 +190,4 @@ const renameFile = async (token, owner, repo, branch, oldPath, newPath) => {
 
 const logout = async () => {};
 
-export default { getProfile, getOrganizations, searchRepos, getRepo, copyRepoTemplate, getBranch, getBranches, createBranch, getContents, getFile, getCommits, saveFile, renameFile, deleteFile, logout };
+export default { setRuntimeConfig, getProfile, getOrganizations, searchRepos, getRepo, copyRepoTemplate, getBranch, getBranches, createBranch, getContents, getFile, getCommits, saveFile, renameFile, deleteFile, logout };

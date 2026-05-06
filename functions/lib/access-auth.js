@@ -219,8 +219,8 @@ export const getAccessContext = async (request, env) => {
 };
 
 export const getModePolicy = (accessContext, env) => {
-  const canUseGithubDirect = Boolean(env.GITHUB_CLIENT_ID || env.VITE_GITHUB_CLIENT_ID);
-  const canUseGitlabDirect = Boolean(env.GITLAB_CLIENT_ID || env.VITE_GITLAB_CLIENT_ID);
+  const canUseGithubDirect = Boolean(env.GITHUB_CLIENT_ID);
+  const canUseGitlabDirect = Boolean(env.GITLAB_CLIENT_ID);
 
   const modes = [];
   if (canUseGithubDirect) {
@@ -243,7 +243,7 @@ export const getModePolicy = (accessContext, env) => {
 
   if (!accessContext.accessEnabled) {
     const allowedModes = modes.filter((mode) => mode.type === 'direct').map((mode) => mode.id);
-    const defaultMode = allowedModes[0] || 'proxy_github_app';
+    const defaultMode = allowedModes.length > 0 ? allowedModes[0] : null;
     return { modes, allowedModes, defaultMode };
   }
 

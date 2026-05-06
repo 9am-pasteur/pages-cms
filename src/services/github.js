@@ -191,15 +191,18 @@ const ensureRuntimeConfig = async () => {
           if (runtime) {
             if (runtime.clientId) p.oauth.clientId = runtime.clientId;
             if (runtime.redirectUri) p.oauth.redirectUri = runtime.redirectUri;
-            if (runtime.base && p.id === 'gitlab') {
-              p.links.profile = (user) => `${runtime.base}/${user}`;
-              p.links.repo = (owner, repo) => `${runtime.base}/${owner}/${repo}`;
-              p.links.file = (owner, repo, branch, path) => `${runtime.base}/${owner}/${repo}/-/blob/${branch}/${path}`;
-              p.links.folder = (owner, repo, branch, path) => `${runtime.base}/${owner}/${repo}/-/tree/${branch}/${path}`;
-              p.links.rawFile = (owner, repo, branch, path) => `${runtime.base}/${owner}/${repo}/-/raw/${branch}/${path}`;
+            if (p.id === 'gitlab' && (runtime.base || runtime.apiBase)) {
+              if (runtime.base) {
+                p.links.profile = (user) => `${runtime.base}/${user}`;
+                p.links.repo = (owner, repo) => `${runtime.base}/${owner}/${repo}`;
+                p.links.file = (owner, repo, branch, path) => `${runtime.base}/${owner}/${repo}/-/blob/${branch}/${path}`;
+                p.links.folder = (owner, repo, branch, path) => `${runtime.base}/${owner}/${repo}/-/tree/${branch}/${path}`;
+                p.links.rawFile = (owner, repo, branch, path) => `${runtime.base}/${owner}/${repo}/-/raw/${branch}/${path}`;
+              }
               if (runtime.apiBase) {
                 p.apiBase = runtime.apiBase;
               }
+              gitlabProvider.setRuntimeConfig({ base: runtime.base, apiBase: runtime.apiBase });
             }
           }
         });

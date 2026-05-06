@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const apiBase = import.meta.env.VITE_GITHUB_API_BASE || 'https://api.github.com';
+const apiBase = 'https://api.github.com';
 
 const authHeaders = (token) => ({ Authorization: `Bearer ${token}` });
 

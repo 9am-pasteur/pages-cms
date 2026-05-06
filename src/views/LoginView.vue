@@ -4,14 +4,14 @@
       <h1 class="font-semibold text-xl lg:text-2xl mb-2">Sign in</h1>
       <p class="text-neutral-400 dark:text-neutral-500 mb-6">Choose an access module to continue.</p>
       <div class="flex flex-col gap-y-3">
-        <select v-model="selectedMode" class="w-full">
+        <select v-model="selectedMode" class="w-full" :disabled="!hasAvailableModes">
           <option v-for="m in availableModes" :key="m.id" :value="m.id">{{ m.label }}</option>
         </select>
-        <button v-if="isDirectMode" class="btn-primary justify-center w-full !gap-x-3" @click="startOAuth">
+        <button v-if="hasAvailableModes && isDirectMode" class="btn-primary justify-center w-full !gap-x-3" @click="startOAuth">
           <Icon :name="selectedMode === 'gitlab' ? 'Gitlab' : 'Github'" class="h-6 w-6 stroke-2 shrink-0"/>
           <div>Sign in with {{ currentProvider.label }}</div>
         </button>
-        <button v-else class="btn-primary justify-center w-full !gap-x-3" @click="continueWithProxy">
+        <button v-else-if="hasAvailableModes" class="btn-primary justify-center w-full !gap-x-3" @click="continueWithProxy">
           <Icon name="ShieldCheck" class="h-6 w-6 stroke-2 shrink-0"/>
           <div>Continue with Proxy (GitHub App)</div>
         </button>
@@ -60,12 +60,12 @@ const bootstrap = ref(null);
 const bootstrapError = ref('');
 const fallbackModes = directProviders.map((p) => ({ id: p.id, label: p.label, type: 'direct', enabled: true }));
 const availableModes = computed(() => {
-  const allModes = bootstrap.value?.modes?.filter((m) => m.enabled) || fallbackModes;
+  const hasBootstrap = !!bootstrap.value;
+  const allModes = (bootstrap.value?.modes || []).filter((m) => m.enabled);
   const allowedIds = Array.isArray(bootstrap.value?.allowedModes) ? bootstrap.value.allowedModes : null;
-  const modes = allowedIds
-    ? allModes.filter((mode) => allowedIds.includes(mode.id))
-    : allModes;
-  const resolved = modes.length > 0 ? modes : fallbackModes;
+  const resolved = hasBootstrap
+    ? (allowedIds ? allModes.filter((mode) => allowedIds.includes(mode.id)) : allModes)
+    : fallbackModes;
 
   return resolved.map((mode) => {
     if (mode.id === 'proxy_github_app') {
@@ -75,6 +75,7 @@ const availableModes = computed(() => {
   });
 });
 const selectedMode = ref(github.providerId?.value || availableModes.value[0]?.id || 'github');
+const hasAvailableModes = computed(() => availableModes.value.length > 0);
 const isDirectMode = computed(() => selectedMode.value === 'github' || selectedMode.value === 'gitlab');
 const currentProvider = computed(() => directProviders.find(p => p.id === selectedMode.value) || directProviders[0]);
 const patRegex = computed(() => currentProvider.value?.pat?.regex || /.*/);
@@ -149,14 +150,16 @@ onMounted(async () => {
   }
   bootstrap.value = data;
   const allowed = data.allowedModes || [];
-  if (allowed.length > 0) {
-    if (!allowed.includes(selectedMode.value)) {
-      selectedMode.value = data.defaultMode || allowed[0];
-      github.setProvider(selectedMode.value);
-    }
-    if (allowed.length === 1 && allowed[0] === 'proxy_github_app') {
-      await continueWithProxy();
-    }
+  if (allowed.length === 0) {
+    bootstrapError.value = 'No login mode is enabled. Configure GITHUB_CLIENT_ID and/or GITLAB_CLIENT_ID, or enable Cloudflare Access proxy mode.';
+    return;
+  }
+  if (!allowed.includes(selectedMode.value)) {
+    selectedMode.value = data.defaultMode || allowed[0];
+    github.setProvider(selectedMode.value);
+  }
+  if (allowed.length === 1 && allowed[0] === 'proxy_github_app') {
+    await continueWithProxy();
   }
 });
 
