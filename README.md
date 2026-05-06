@@ -113,6 +113,9 @@ Cloudflare has very generous free tiers and can also host your actual website. I
 - 非adminユーザーは `proxy_github_app` 固定になります。
 - `email` claim が `CMS_ADMIN_USERS` に含まれるユーザーは、`github` / `gitlab` / `proxy_github_app` を選択できます。
 
+> 重要: `proxy_github_app` はバックエンドが GitHub App 権限で書き込みを行うため、**API 入口のアクセス制限が必須**です。  
+> Cloudflare Access の設定漏れ・対象ホスト漏れがあると、意図せず公開されるリスクがあります。
+
 1. **Cloudflare Access を設定**
 - Access Application を対象URLに作成。
 - Access Application の `Public hostname` は保護漏れ防止のため、次を必ず登録:
@@ -131,7 +134,14 @@ Cloudflare has very generous free tiers and can also host your actual website. I
   - `Additional settings` → `Application Audience (AUD) Tag`
   - `Token` に表示される値を `CLOUDFLARE_ACCESS_AUD` に設定
 
-2. **GitHub App を作成（詳細）**
+2. **（推奨）Basic 認証をフェイルセーフとして有効化**
+- Cloudflare Access 設定ミス時の保険として、`BASIC_AUTH=when_no_access` を推奨。
+- このモードでは:
+  - Access JWT が有効なリクエストは Basic 認証をスキップ
+  - Access JWT が無い/無効なリクエストは Basic 認証を要求
+- `BASIC_AUTH` を有効化する場合は、`BASIC_USERNAME` と `BASIC_PASSWORD` の両方を必ず設定する（未設定だと安全側で認証失敗）。
+
+3. **GitHub App を作成（詳細）**
 - GitHub 右上プロフィールから `Settings` → `Developer settings` → `GitHub Apps` → `New GitHub App`。
 - 入力:
   - `GitHub App name`: 一意な名前
@@ -143,17 +153,17 @@ Cloudflare has very generous free tiers and can also host your actual website. I
   - それ以外は不要なら付与しない
 - `Create GitHub App` を保存。
 
-3. **Private Key を発行**
+4. **Private Key を発行**
 - 作成した App の設定画面で `Private keys` セクションへ移動。
 - `Generate a private key` を押し、`.pem` をダウンロード。
 - この PEM は再表示不可なので、シークレットストアへ安全に保管。
 
-4. **App を対象リポジトリにインストール**
+5. **App を対象リポジトリにインストール**
 - App 設定画面で `Install App` → インストール先（Organization/User）を選択。
 - `Only select repositories` を選び、CMS対象の repository のみ選択して install。
 - 複数repoに不要に入れない（漏えい時影響を限定するため）。
 
-5. **App ID / Installation ID の取得**
+6. **App ID / Installation ID の取得**
 - `App ID`:
   - App設定画面の `About` 付近に表示される値を使う。
 - `Installation ID`:
@@ -163,7 +173,7 @@ Cloudflare has very generous free tiers and can also host your actual website. I
   - 方法B（API）: REST API で `GET /repos/{owner}/{repo}/installation` などを使って取得。
   - このプロジェクトでは `GITHUB_APP_INSTALLATION_ID` に数値IDを設定する。
 
-6. **Pages の Variables/Secrets を設定**
+7. **Pages の Variables/Secrets を設定**
 - Access検証:
   - `CLOUDFLARE_ACCESS_TEAM_DOMAIN`
   - `CLOUDFLARE_ACCESS_AUD`
@@ -189,7 +199,12 @@ Cloudflare has very generous free tiers and can also host your actual website. I
   - `GITHUB_APP_INSTALLATION_ID`
   - `GITHUB_APP_PRIVATE_KEY`
 
-7. **動作確認**
+ - Basic認証（推奨フェイルセーフ）:
+   - `BASIC_AUTH=when_no_access`
+   - `BASIC_USERNAME`
+   - `BASIC_PASSWORD`
+
+8. **動作確認**
 - `/api/bootstrap` で `allowedModes` を確認。
 - 非adminでログインして `proxy_github_app` のみになることを確認。
 - 許可外パスへの保存が `403` になることを確認。
@@ -201,7 +216,7 @@ Cloudflare has very generous free tiers and can also host your actual website. I
   - `Auth-provider: cloudflare-access`
 - `github` / `gitlab` の direct モードでは、これらの trailer は付与されない。
 
-8. **ローテーション（運用）**
+9. **ローテーション（運用）**
 - Private key を定期的に再発行し、`GITHUB_APP_PRIVATE_KEY` を更新。
 - 事故時は App の key を失効（削除）し、必要なら App を uninstall してアクセス遮断。
 
