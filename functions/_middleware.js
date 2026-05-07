@@ -1,4 +1,6 @@
 // Basic auth middleware for Cloudflare Pages Functions (no Node.js built-ins).
+import { isAccessJwtValid } from './lib/access-auth';
+
 const encoder = new TextEncoder();
 
 /**
@@ -30,8 +32,37 @@ const errorHandler = async ({ next }) => {
 };
 
 const guardByBasicAuth = async ({ request, next, env }) => {
-  if (env.BASIC_AUTH !== 'true') {
+  const modeRaw = String(env.BASIC_AUTH || '').trim().toLowerCase();
+  const basicUser = env.BASIC_USERNAME || '';
+  const basicPass = env.BASIC_PASSWORD || '';
+  const basicEnabled = modeRaw !== '' && modeRaw !== 'false';
+
+  if (!basicEnabled) {
     return await next();
+  }
+
+  // Safe default: if Basic auth is enabled but credentials are incomplete, deny access.
+  if (!basicUser || !basicPass) {
+    return new Response(
+      'Basic auth is enabled but BASIC_USERNAME/BASIC_PASSWORD is not fully configured.',
+      {
+        status: 401,
+        headers: {
+          'WWW-Authenticate': 'Basic realm="Input username and password"',
+        },
+      }
+    );
+  }
+
+  if (modeRaw === 'when_no_access') {
+    // If request already has a valid Cloudflare Access JWT, skip Basic auth.
+    // If Access is not configured or JWT is invalid/missing, fallback to Basic auth (safe side).
+    if (env.CLOUDFLARE_ACCESS_TEAM_DOMAIN) {
+      const validAccess = await isAccessJwtValid(request, env);
+      if (validAccess) {
+        return await next();
+      }
+    }
   }
 
   // Check header
@@ -72,8 +103,8 @@ const guardByBasicAuth = async ({ request, next, env }) => {
   const username = credentials.substring(0, index);
   const password = credentials.substring(index + 1);
   if (
-    !timingSafeEqual(env.BASIC_USERNAME, username) ||
-    !timingSafeEqual(env.BASIC_PASSWORD, password)
+    !timingSafeEqual(basicUser, username) ||
+    !timingSafeEqual(basicPass, password)
   ) {
     return new Response(
       'Invalid username or password.',

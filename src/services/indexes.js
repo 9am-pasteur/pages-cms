@@ -117,7 +117,7 @@ const decodeContent = (res) => {
 
 const fetchIndexFile = async (owner, repo, branch, path) => {
   // Fetch metadata (non-raw) once; decide best path based on presence of content/download_url.
-  const res = await github.getFile(owner, repo, branch, path, false);
+  const res = await github.getFile(owner, repo, branch, path, false, { suppressStatuses: [404] });
   if (!res) return null;
 
   // If base64 content is present (usually <=1MB), decode and return.
@@ -137,7 +137,7 @@ const fetchIndexFile = async (owner, repo, branch, path) => {
   }
 
   // Last resort: try raw (not expected to hit normally)
-  const raw = await github.getFile(owner, repo, branch, path, true);
+  const raw = await github.getFile(owner, repo, branch, path, true, { suppressStatuses: [404] });
   if (typeof raw === 'string' && raw.trim() !== '') {
     return raw;
   }

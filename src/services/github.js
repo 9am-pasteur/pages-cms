@@ -9,10 +9,12 @@ import notifications from '@/services/notifications';
 import providers from '@/config/providers';
 import githubProvider from '@/services/providers/github';
 import gitlabProvider from '@/services/providers/gitlab';
+import proxyGithubAppProvider from '@/services/providers/proxyGithubApp';
 
 const providerMap = {
   github: githubProvider,
   gitlab: gitlabProvider,
+  proxy_github_app: proxyGithubAppProvider,
 };
 
 const providerId = ref(localStorage.getItem('provider') || 'github');
@@ -20,6 +22,9 @@ const token = ref(localStorage.getItem('token') || null);
 const profile = ref(null);
 let runtimeConfigLoaded = false;
 let runtimeConfigPromise = null;
+let bootstrapCache = null;
+let bootstrapCacheTime = 0;
+const bootstrapCacheTtlMs = 30 * 1000;
 
 const getProviderConfig = (id) => providers.find((p) => p.id === id);
 const currentProvider = () => providerMap[providerId.value] || githubProvider;
@@ -51,12 +56,54 @@ const handleAuthError = () => {
   router.push({ name: 'login' });
 };
 
-const withCatch = async (fn) => {
+const extractErrorPayload = (error) => {
+  const data = error?.response?.data;
+  if (!data) return { message: '' };
+  if (typeof data === 'string') return { message: data };
+  return {
+    message: data.message || data.error || '',
+    hint: data.hint || '',
+    check: Array.isArray(data.check) ? data.check : [],
+  };
+};
+
+const composeErrorNotification = (payload) => {
+  const lines = [];
+  if (payload.message) lines.push(payload.message);
+  if (payload.hint) lines.push(payload.hint);
+  if (payload.check?.length) lines.push(`Check: ${payload.check.join(', ')}`);
+  return lines.filter(Boolean).join(' ');
+};
+
+const handleForbiddenError = (error) => {
+  const payload = extractErrorPayload(error);
+  const message = String(payload.message || '').toLowerCase();
+  if (message.includes('path is not writable in proxy mode') || message.includes('path is not allowed')) {
+    notifications.notify('This file can only be edited by administrators.', 'warning');
+    return;
+  }
+  const detail = composeErrorNotification(payload);
+  notifications.notify(detail || 'You do not have permission to perform this action.', 'warning');
+};
+
+const withCatch = async (fn, options = {}) => {
   try {
     return await fn();
   } catch (error) {
-    if (error?.response && (error.response.status === 401 || error.response.status === 403)) {
+    const status = error?.response?.status;
+    const suppressStatuses = Array.isArray(options.suppressStatuses) ? options.suppressStatuses : [];
+    if (suppressStatuses.includes(status)) {
+      return null;
+    }
+    if (status === 401) {
       handleAuthError();
+    } else if (status === 403) {
+      handleForbiddenError(error);
+    } else if (status >= 400) {
+      const detail = composeErrorNotification(extractErrorPayload(error));
+      if (detail) {
+        notifications.notify(detail, 'error');
+      }
     }
     console.error(error);
     return null;
@@ -78,9 +125,9 @@ const copyRepoTemplate = (...args) => withCatch(() => currentProvider().copyRepo
 const getBranch = (owner, name, branch) => withCatch(() => currentProvider().getBranch(token.value, owner, name, branch));
 const getBranches = (owner, name, perPage = 100, page = 1) => withCatch(() => currentProvider().getBranches(token.value, owner, name, perPage, page));
 const createBranch = (owner, repo, baseBranch, newBranchName) => withCatch(() => currentProvider().createBranch(token.value, owner, repo, baseBranch, newBranchName));
-const getContents = (owner, repo, branch = 'HEAD', path = '', useGraphql = true) => withCatch(() => currentProvider().getContents(token.value, owner, repo, branch, path, useGraphql));
-const getFile = (owner, repo, branch = null, path, raw = false) => withCatch(() => currentProvider().getFile(token.value, owner, repo, branch, path, raw));
-const getCommits = (owner, repo, branch, path) => withCatch(() => currentProvider().getCommits(token.value, owner, repo, branch, path));
+const getContents = (owner, repo, branch = 'HEAD', path = '', useGraphql = true, options = {}) => withCatch(() => currentProvider().getContents(token.value, owner, repo, branch, path, useGraphql), options);
+const getFile = (owner, repo, branch = null, path, raw = false, options = {}) => withCatch(() => currentProvider().getFile(token.value, owner, repo, branch, path, raw), options);
+const getCommits = (owner, repo, branch, path, options = {}) => withCatch(() => currentProvider().getCommits(token.value, owner, repo, branch, path), options);
 const saveFile = (owner, repo, branch, path, content, sha = null, retryCreate = false) => withCatch(() => currentProvider().saveFile(token.value, owner, repo, branch, path, content, sha, retryCreate));
 const renameFile = (owner, repo, branch, oldPath, newPath) => withCatch(() => currentProvider().renameFile(token.value, owner, repo, branch, oldPath, newPath));
 const deleteFile = (owner, repo, branch, path, sha) => withCatch(() => currentProvider().deleteFile(token.value, owner, repo, branch, path, sha));
@@ -144,15 +191,18 @@ const ensureRuntimeConfig = async () => {
           if (runtime) {
             if (runtime.clientId) p.oauth.clientId = runtime.clientId;
             if (runtime.redirectUri) p.oauth.redirectUri = runtime.redirectUri;
-            if (runtime.base && p.id === 'gitlab') {
-              p.links.profile = (user) => `${runtime.base}/${user}`;
-              p.links.repo = (owner, repo) => `${runtime.base}/${owner}/${repo}`;
-              p.links.file = (owner, repo, branch, path) => `${runtime.base}/${owner}/${repo}/-/blob/${branch}/${path}`;
-              p.links.folder = (owner, repo, branch, path) => `${runtime.base}/${owner}/${repo}/-/tree/${branch}/${path}`;
-              p.links.rawFile = (owner, repo, branch, path) => `${runtime.base}/${owner}/${repo}/-/raw/${branch}/${path}`;
+            if (p.id === 'gitlab' && (runtime.base || runtime.apiBase)) {
+              if (runtime.base) {
+                p.links.profile = (user) => `${runtime.base}/${user}`;
+                p.links.repo = (owner, repo) => `${runtime.base}/${owner}/${repo}`;
+                p.links.file = (owner, repo, branch, path) => `${runtime.base}/${owner}/${repo}/-/blob/${branch}/${path}`;
+                p.links.folder = (owner, repo, branch, path) => `${runtime.base}/${owner}/${repo}/-/tree/${branch}/${path}`;
+                p.links.rawFile = (owner, repo, branch, path) => `${runtime.base}/${owner}/${repo}/-/raw/${branch}/${path}`;
+              }
               if (runtime.apiBase) {
                 p.apiBase = runtime.apiBase;
               }
+              gitlabProvider.setRuntimeConfig({ base: runtime.base, apiBase: runtime.apiBase });
             }
           }
         });
@@ -166,4 +216,49 @@ const ensureRuntimeConfig = async () => {
   return runtimeConfigPromise;
 };
 
-export default { token, profile, providerId, providers, currentProviderConfig, setProvider, setToken, clearToken, getProfile, getOrganizations, searchRepos, getRepo, copyRepoTemplate, getBranch, getBranches, createBranch, getContents, getFile, getCommits, saveFile, renameFile, deleteFile, logout, exchangeCode, ensureRuntimeConfig };
+/**
+ * @returns {Promise<import('@/types/bootstrap').BootstrapResponse>}
+ */
+const getBootstrap = async (force = false) => {
+  const now = Date.now();
+  if (!force && bootstrapCache && (now - bootstrapCacheTime) < bootstrapCacheTtlMs) {
+    return bootstrapCache;
+  }
+  const res = await axios.get('/api/bootstrap');
+  bootstrapCache = res.data;
+  bootstrapCacheTime = now;
+  const proxyMode = (bootstrapCache.modes || []).find((mode) => mode.id === 'proxy_github_app');
+  if (proxyMode?.proxy?.basePath) {
+    proxyGithubAppProvider.setBasePath(proxyMode.proxy.basePath);
+  }
+  return bootstrapCache;
+};
+
+const getBootstrapSafe = async (force = false) => {
+  try {
+    return await getBootstrap(force);
+  } catch {
+    return null;
+  }
+};
+
+const syncProviderWithBootstrap = async () => {
+  const bootstrap = await getBootstrapSafe();
+  if (!bootstrap) return null;
+  const allowed = Array.isArray(bootstrap.allowedModes) ? bootstrap.allowedModes : [];
+  if (allowed.length === 0) return bootstrap;
+  if (!allowed.includes(providerId.value)) {
+    const fallback = bootstrap.defaultMode || allowed[0];
+    setProvider(fallback);
+    if (fallback === 'proxy_github_app') {
+      clearToken();
+    }
+  }
+  return bootstrap;
+};
+
+const getProxyBootstrap = async () => {
+  return proxyGithubAppProvider.getBootstrap();
+};
+
+export default { token, profile, providerId, providers, currentProviderConfig, setProvider, setToken, clearToken, getProfile, getOrganizations, searchRepos, getRepo, copyRepoTemplate, getBranch, getBranches, createBranch, getContents, getFile, getCommits, saveFile, renameFile, deleteFile, logout, exchangeCode, ensureRuntimeConfig, getBootstrap, getBootstrapSafe, syncProviderWithBootstrap, getProxyBootstrap };

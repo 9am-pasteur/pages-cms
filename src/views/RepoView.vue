@@ -183,9 +183,15 @@ const props = defineProps({
 
 const provider = computed(() => github.currentProviderConfig());
 const avatarUrl = computed(() => {
-  const base = provider.value.id === 'github'
-    ? 'https://github.com'
-    : (import.meta.env.VITE_GITLAB_BASE || 'https://gitlab.com');
+  const profileUrl = provider.value?.links?.profile?.(props.owner);
+  let base = 'https://github.com';
+  try {
+    if (profileUrl) {
+      base = new URL(profileUrl).origin;
+    }
+  } catch {
+    // keep default
+  }
   return `${base}/${props.owner}.png`;
 });
 

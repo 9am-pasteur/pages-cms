@@ -11,7 +11,7 @@ import YAML from 'yaml';
 import github from '@/services/github';
 
 const CONFIG_VERSION = '1.1'; // We increment this when there are schema logic changes
-const CONFIG_CACHE = (import.meta.env?.VITE_CONFIG_CACHE === 'false') ? false : true;
+const CONFIG_CACHE = true;
 // Flush the cache if disabled or if the version doesn't match
 const currentVersion = localStorage.getItem('configVersion') || '0';
 if (!CONFIG_CACHE || currentVersion !== CONFIG_VERSION) {

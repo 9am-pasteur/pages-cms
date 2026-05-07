@@ -2,8 +2,13 @@
   <Dropdown :elementClass="'dropdown-top flex-shrink'" :dropdownClass="'!max-w-none w-32 !right-auto left-0'">
     <template #trigger>
       <button v-if="profile" class="btn max-w-[12.5rem] group-x[.dropdown-active]:bg-neutral-100 dark:group-[.dropdown-active]:bg-neutral-850">
-        <img class="h-6 w-6 shrink-0 rounded-full -ml-1 lg:-ml-1.5" :src="profile.avatar_url" alt="Profile picture"/>
-        <div class="text-left font-medium truncate">{{ profile.name || profile.login }}</div>
+        <img
+          v-if="showAvatar"
+          class="h-6 w-6 shrink-0 rounded-full -ml-1 lg:-ml-1.5"
+          :src="profile.avatar_url"
+          alt="Profile picture"
+        />
+        <div class="text-left font-medium truncate">{{ profileLabel }}</div>
         <Icon name="ChevronsUpDown" class="h-4 w-4 stroke-2 shrink-0 -mr-1 lg:-mr-1.5"/>
       </button>
     </template>
@@ -41,7 +46,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import github from '@/services/github';
 import theme from '@/services/theme';
@@ -49,6 +54,13 @@ import Dropdown from '@/components/utils/Dropdown.vue';
 import Icon from '@/components/utils/Icon.vue';
 
 const profile = ref(null);
+const isProxyMode = computed(() => github.providerId.value === 'proxy_github_app');
+const showAvatar = computed(() => !isProxyMode.value && !!profile.value?.avatar_url);
+const profileLabel = computed(() => {
+  if (!profile.value) return '';
+  if (isProxyMode.value) return profile.value.email || profile.value.login || profile.value.name || 'User';
+  return profile.value.name || profile.value.login || profile.value.email || 'User';
+});
 
 const router = useRouter();
 

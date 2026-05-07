@@ -2,19 +2,24 @@
   <div class="h-screen flex justify-center items-center bg-dneutral-200 p-4 lg:p-8">
     <div class="max-w-[360px] text-center">
       <h1 class="font-semibold text-xl lg:text-2xl mb-2">Sign in</h1>
-      <p class="text-neutral-400 dark:text-neutral-500 mb-6">Choose a Git provider and sign in. Tokens stay in your browser.</p>
+      <p class="text-neutral-400 dark:text-neutral-500 mb-6">Choose an access module to continue.</p>
       <div class="flex flex-col gap-y-3">
-        <select v-model="selectedProvider" class="w-full">
-          <option v-for="p in providers" :key="p.id" :value="p.id">{{ p.label }}</option>
+        <select v-model="selectedMode" class="w-full" :disabled="!hasAvailableModes">
+          <option v-for="m in availableModes" :key="m.id" :value="m.id">{{ m.label }}</option>
         </select>
-        <button class="btn-primary justify-center w-full !gap-x-3" @click="startOAuth">
-          <Icon :name="selectedProvider === 'gitlab' ? 'Gitlab' : 'Github'" class="h-6 w-6 stroke-2 shrink-0"/>
+        <button v-if="hasAvailableModes && isDirectMode" class="btn-primary justify-center w-full !gap-x-3" @click="startOAuth">
+          <Icon :name="selectedMode === 'gitlab' ? 'Gitlab' : 'Github'" class="h-6 w-6 stroke-2 shrink-0"/>
           <div>Sign in with {{ currentProvider.label }}</div>
         </button>
-        <button v-if="currentProvider.pat" class="btn-secondary justify-center w-full" @click="patModal.openModal()">
+        <button v-else-if="hasAvailableModes" class="btn-primary justify-center w-full !gap-x-3" @click="continueWithProxy">
+          <Icon name="ShieldCheck" class="h-6 w-6 stroke-2 shrink-0"/>
+          <div>Continue with Proxy (GitHub App)</div>
+        </button>
+        <button v-if="isDirectMode && currentProvider.pat" class="btn-secondary justify-center w-full" @click="patModal.openModal()">
           Sign in with a Personal Access Token
         </button>
       </div>
+      <p v-if="bootstrapError" class="text-sm text-red-500 dark:text-red-400 mt-4">{{ bootstrapError }}</p>
     </div>
   </div>
   
@@ -39,7 +44,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import github from '@/services/github';
 import Icon from '@/components/utils/Icon.vue';
@@ -50,14 +55,34 @@ const router = useRouter();
 
 const patModal = ref(null);
 const patToken = ref('');
-const providers = providersConfig;
-const selectedProvider = ref(github.providerId?.value || providers[0].id);
-const currentProvider = computed(() => providers.find(p => p.id === selectedProvider.value) || providers[0]);
+const directProviders = providersConfig.filter((p) => p.id === 'github' || p.id === 'gitlab');
+const bootstrap = ref(null);
+const bootstrapError = ref('');
+const fallbackModes = directProviders.map((p) => ({ id: p.id, label: p.label, type: 'direct', enabled: true }));
+const availableModes = computed(() => {
+  const hasBootstrap = !!bootstrap.value;
+  const allModes = (bootstrap.value?.modes || []).filter((m) => m.enabled);
+  const allowedIds = Array.isArray(bootstrap.value?.allowedModes) ? bootstrap.value.allowedModes : null;
+  const resolved = hasBootstrap
+    ? (allowedIds ? allModes.filter((mode) => allowedIds.includes(mode.id)) : allModes)
+    : fallbackModes;
+
+  return resolved.map((mode) => {
+    if (mode.id === 'proxy_github_app') {
+      return { id: mode.id, label: 'Proxy (GitHub App)' };
+    }
+    return { id: mode.id, label: mode.label || mode.id };
+  });
+});
+const selectedMode = ref(github.providerId?.value || availableModes.value[0]?.id || 'github');
+const hasAvailableModes = computed(() => availableModes.value.length > 0);
+const isDirectMode = computed(() => selectedMode.value === 'github' || selectedMode.value === 'gitlab');
+const currentProvider = computed(() => directProviders.find(p => p.id === selectedMode.value) || directProviders[0]);
 const patRegex = computed(() => currentProvider.value?.pat?.regex || /.*/);
 
 const savePat = () => {
   if (patRegex.value.test(patToken.value)) {
-    github.setToken(patToken.value, selectedProvider.value);
+    github.setToken(patToken.value, selectedMode.value);
     var redirect = localStorage.getItem('redirect') ? localStorage.getItem('redirect') : '/' ;
     localStorage.removeItem('redirect');
     router.push({ path: redirect });
@@ -83,6 +108,7 @@ const sha256 = async (plain) => {
 
 const startOAuth = async () => {
   await github.ensureRuntimeConfig();
+  github.setProvider(selectedMode.value);
   const provider = currentProvider.value;
   if (!provider?.oauth?.clientId) {
     alert('Client ID not configured for ' + provider.label);
@@ -107,6 +133,35 @@ const startOAuth = async () => {
   });
   window.location.href = `${provider.oauth.authorizeUrl}?${params.toString()}`;
 };
+
+const continueWithProxy = async () => {
+  github.clearToken();
+  github.setProvider('proxy_github_app');
+  const redirect = localStorage.getItem('redirect') ? localStorage.getItem('redirect') : '/';
+  localStorage.removeItem('redirect');
+  router.push({ path: redirect });
+};
+
+onMounted(async () => {
+  const data = await github.getBootstrapSafe(true);
+  if (!data) {
+    bootstrapError.value = 'Failed to load bootstrap information.';
+    return;
+  }
+  bootstrap.value = data;
+  const allowed = data.allowedModes || [];
+  if (allowed.length === 0) {
+    bootstrapError.value = 'No login mode is enabled. Configure GITHUB_CLIENT_ID and/or GITLAB_CLIENT_ID, or enable Cloudflare Access proxy mode.';
+    return;
+  }
+  if (!allowed.includes(selectedMode.value)) {
+    selectedMode.value = data.defaultMode || allowed[0];
+    github.setProvider(selectedMode.value);
+  }
+  if (allowed.length === 1 && allowed[0] === 'proxy_github_app') {
+    await continueWithProxy();
+  }
+});
 
 // Runtime provider config is loaded lazily in github.ensureRuntimeConfig (called before OAuth)
 </script>

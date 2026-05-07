@@ -108,13 +108,36 @@ router.beforeEach(async (to, from) => {
     return { path: redirect }
   }
   // Redirect logged out users to log in screen and save page for redirection post-loing
-  if (to.name != 'login' && github.token.value === null) {
-    localStorage.setItem('redirect', to.fullPath);
-    return { path: '/login' }
+  const bootstrap = await github.syncProviderWithBootstrap();
+  const isProxyMode = github.providerId.value === 'proxy_github_app';
+
+  if (to.name !== 'login' && github.token.value === null) {
+    if (!isProxyMode) {
+      localStorage.setItem('redirect', to.fullPath);
+      return { path: '/login' };
+    }
+    if (!bootstrap?.allowedModes?.includes('proxy_github_app')) {
+      localStorage.setItem('redirect', to.fullPath);
+      return { path: '/login' };
+    }
+  }
+
+  // In proxy mode we have a fixed repository; direct users to it from home.
+  if (to.name === 'home' && isProxyMode) {
+    const proxyBootstrap = await github.getProxyBootstrap().catch(() => null);
+    const owner = proxyBootstrap?.repo?.owner;
+    const repo = proxyBootstrap?.repo?.name;
+    const branch = proxyBootstrap?.repo?.branch;
+    if (owner && repo && branch) {
+      return {
+        name: 'content-root',
+        params: { owner, repo, branch }
+      };
+    }
   }
   if (to.name == 'login' && github.token.value !== null) {
     return { path: '/' }
   }
-})
+});
 
 export default router
