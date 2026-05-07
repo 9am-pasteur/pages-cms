@@ -57,6 +57,8 @@ export default function useSchema() {
         const format = field?.options?.format || (hasTime ? 'YYYY-MM-DDTHH:mm' : 'YYYY-MM-DD');
         return moment().format(format);
       }
+      case 'date-range':
+        return '';
       default:
         return '';
     }

@@ -45,6 +45,10 @@ fields:
 - 一覧表示（`file/View.vue`）の表示フォーマットは `options.outputFormat` で上書き可能。未指定時の既定値:
   - `options.time: true` → `MMM D, YYYY - HH:mm`
   - `options.time: false` → `MMM D, YYYY`
+- `type: date-range` も利用可能（`@vuepic/vue-datepicker`）。
+  - 保存値は `start/end` 形式（例: `2023-09-04/2023-09-08`）。
+  - 保存フォーマットは `options.format`（既定: `YYYY-MM-DD`、`date` と同じ記法）。
+  - 入力表示・一覧表示フォーマットは `options.outputFormat`（既定: `MMM D, YYYY`、`date` と同じ記法）。
 
 ## How it works
 

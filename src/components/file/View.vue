@@ -36,6 +36,24 @@ const formattedValue = computed(() => {
       return '';
     }
     return dateObject.format(outputFormat);
+  } else if (props.field.type === 'date-range') {
+    if (typeof props.value !== 'string') return '';
+    const [startRaw, endRaw] = props.value.includes('/')
+      ? props.value.split('/')
+      : [props.value, props.value];
+    if (!startRaw || !endRaw) return props.value;
+    const inputFormat = props.field.options?.format || 'YYYY-MM-DD';
+    const outputFormat = props.field.options?.outputFormat || 'MMM D, YYYY';
+    const start = moment(startRaw, inputFormat, true);
+    const end = moment(endRaw, inputFormat, true);
+    if (!start.isValid() || !end.isValid()) {
+      console.warn(`Date range for field '${props.field.name}' is saved in the wrong format or invalid:`, props.value);
+      return '';
+    }
+    if (start.isSame(end, 'day')) {
+      return start.format(outputFormat);
+    }
+    return `${start.format(outputFormat)} - ${end.format(outputFormat)}`;
   } else if (props.field.type === 'image') {
     const imagePath = Array.isArray(props.value) ? props.value[0] : props.value;
     const prefixInput = props.field.options?.input ?? repoStore.config.object.media?.input ?? null;

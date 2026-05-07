@@ -68,6 +68,7 @@ import FieldString from '@/components/fields/FieldString.vue';
 import FieldNumber from '@/components/fields/FieldNumber.vue';
 import FieldText from '@/components/fields/FieldText.vue';
 import FieldDate from '@/components/fields/FieldDate.vue';
+import FieldDateRange from '@/components/fields/FieldDateRange.vue';
 import FieldBoolean from '@/components/fields/FieldBoolean.vue';
 import FieldSelect from '@/components/fields/FieldSelect.vue';
 import FieldObject from '@/components/fields/FieldObject.vue';
@@ -82,6 +83,7 @@ const fieldComponents = {
   string: { component: FieldString },
   number: { component: FieldNumber },
   date: { component: FieldDate },
+  'date-range': { component: FieldDateRange },
   text: { component: FieldText },
   boolean: { component: FieldBoolean, },
   select: { component: FieldSelect },
