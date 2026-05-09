@@ -268,7 +268,7 @@ const validationSchema = {
         },
         "type": {
           "type": "string",
-          "enum": ["boolean", "code", "date", "date-range", "image", "number", "object", "rich-text", "select", "string", "text"],
+          "enum": ["boolean", "code", "date", "date-range", "image", "number", "object", "rich-text", "select", "string", "tag-suggest", "text"],
           "errorMessage": "Property 'type' must be one of the valid field types (see documentation)."
         },
         "default": {

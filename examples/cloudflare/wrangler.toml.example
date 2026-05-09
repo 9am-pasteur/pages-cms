@@ -59,3 +59,7 @@ BASE_URL = "http://localhost:8788"
 # GITHUB_APP_ID = "123456"
 # GITHUB_APP_INSTALLATION_ID = "78901234"
 # GITHUB_APP_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+
+# Tag suggestion providers (JSON object)
+# Used by POST /api/tag-suggest and `type: tag-suggest` field.
+# CMS_TAG_SUGGEST_PROVIDERS = "{\"keywords-ja\":{\"endpoint\":\"https://example.com/tag-suggest\",\"apiKey\":\"xxxx\",\"apiKeyHeader\":\"x-api-key\",\"timeoutMs\":8000,\"maxItems\":20}}"
