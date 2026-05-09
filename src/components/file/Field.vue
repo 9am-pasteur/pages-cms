@@ -26,6 +26,7 @@
                 :field="field"
                 :modelValue="element"
                 @update:modelValue="value => model[field.name][index] = value"
+                v-bind="extraFieldProps"
                 :ref="el => fieldRefs[index] = el"
               />
             </div>
@@ -45,6 +46,7 @@
         :field="field"
         :modelValue="model[field.name]"
         @update:modelValue="model[field.name] = $event"
+        v-bind="extraFieldProps"
         ref="fieldRef"
       />
     </template>
@@ -75,6 +77,7 @@ import FieldObject from '@/components/fields/FieldObject.vue';
 import FieldImage from '@/components/fields/FieldImage.vue';
 import FieldCode from '@/components/fields/FieldCode.vue';
 import FieldRichText from '@/components/fields/FieldRichText.vue';
+import FieldTagSuggest from '@/components/fields/FieldTagSuggest.vue';
 
 const { getDefaultValue, sanitizeObject } = useSchema();
 const { validateListRange } = useFieldValidation();
@@ -91,6 +94,7 @@ const fieldComponents = {
   image: { component: FieldImage, listSupport: true },
   code: { component: FieldCode },
   'rich-text': { component: FieldRichText },
+  'tag-suggest': { component: FieldTagSuggest },
 };
 
 const props = defineProps({
@@ -109,6 +113,13 @@ const fieldComponent = computed(() => {
 
 const fieldListSupport = computed(() => {
   return (fieldComponents[props.field.type] && fieldComponents[props.field.type].listSupport) ? fieldComponents[props.field.type].listSupport : false;
+});
+
+const extraFieldProps = computed(() => {
+  if (props.field.type === 'tag-suggest') {
+    return { record: props.model };
+  }
+  return {};
 });
 
 const addEntry = () => {

@@ -50,6 +50,45 @@ fields:
   - 保存フォーマットは `options.format`（既定: `YYYY-MM-DD`、`date` と同じ記法）。
   - 入力表示・一覧表示フォーマットは `options.outputFormat`（既定: `MMM D, YYYY`、`date` と同じ記法）。
 
+### `tag-suggest` フィールド（候補API連携）
+
+`type: tag-suggest` を使うと、タグを Gmail の宛先入力のように複数入力できます。保存値はカンマ区切り文字列です（例: `tag-a, tag-b`）。
+
+- 候補取得APIは `POST /api/tag-suggest` を通して呼び出します。
+- 接続先URLはクライアント指定ではなく、環境変数 `CMS_TAG_SUGGEST_PROVIDERS` の provider 定義から解決します。
+- 候補の説明文は Markdown をレンダリングして表示します（リンク可）。
+- `CMS_TAG_SUGGEST_PROVIDERS` 未設定時は provider 解決に失敗するため、`/api/tag-suggest` は利用できません。
+
+> 重要: `CMS_TAG_SUGGEST_PROVIDERS` を設定して使う場合、`/api/tag-suggest` へのアクセス制限（Cloudflare Access または Basic 認証）を必ず有効にしてください。  
+> キーはレスポンスで露出しませんが、未保護だと第三者にAPI中継を悪用される可能性があります。
+
+Cloudflare Pages の Variables/Secrets 例:
+
+```json
+{
+  "keywords-ja": {
+    "endpoint": "https://example.com/tag-suggest",
+    "apiKey": "YOUR_API_KEY",
+    "apiKeyHeader": "x-api-key",
+    "timeoutMs": 8000,
+    "maxItems": 20
+  }
+}
+```
+
+`.pages.yml` 例:
+
+```yaml
+fields:
+  - name: tags
+    type: tag-suggest
+    options:
+      suggestProvider: keywords-ja
+      contextFields: [title, body]
+      minQueryLength: 0
+      placeholder: タグを入力
+```
+
 ## How it works
 
 Pages CMS is built as a [Vue.js](https://vuejs.org/) app with a few serverless functions to handle the Github login.
