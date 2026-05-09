@@ -561,7 +561,7 @@ const loadPage = async (page = 1, append = false) => {
   const collectionName = schema.value.name || schema.value.path?.split('/').filter(Boolean).pop();
   try {
     const indexData = collectionName ? await indexes.fetchIndexPage(props.owner, props.repo, props.branch, collectionName, page) : null;
-    if (indexData && indexData.items?.length) {
+    if (indexData && Array.isArray(indexData.items)) {
       const folderFilter = route.query.folder ? route.query.folder.replace(/\/$/, '') : null;
       const mapped = indexes.toCollectionItems(indexData.items, folderFilter);
       files = [...mapped.files, ...mapped.folders];

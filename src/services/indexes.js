@@ -60,8 +60,11 @@ const applyMutations = (index, mutations, pageNumber = null) => {
     }
   });
 
+  // Recompute page_count only for full-index views.
+  // For paged reads (pageNumber != null), `mutated.items` is just one page,
+  // so recalculating from its length would incorrectly collapse page_count to 1.
   const pageSize = mutated.meta?.page_size;
-  if (pageSize) {
+  if (pageSize && pageNumber == null) {
     mutated.meta.page_count = Math.max(1, Math.ceil(mutated.items.length / pageSize));
   }
   return mutated;
@@ -93,6 +96,17 @@ const safeParse = (raw, sourcePath) => {
   }
 };
 
+const isValidJsonText = (raw) => {
+  if (typeof raw !== 'string' || raw.trim() === '') return false;
+  const cleaned = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+  try {
+    JSON.parse(cleaned);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const decodeContent = (res) => {
   if (!res) return null;
   if (typeof res === 'string') return res;
@@ -120,16 +134,26 @@ const fetchIndexFile = async (owner, repo, branch, path) => {
   const res = await github.getFile(owner, repo, branch, path, false, { suppressStatuses: [404] });
   if (!res) return null;
 
-  // If base64 content is present (usually <=1MB), decode and return.
-  const decoded = decodeContent(res);
-  if (decoded) return decoded;
+  // If GitHub marks content as truncated, avoid decoding partial content and fallback.
+  if (res.truncated === true) {
+    // continue to download_url/raw fallback
+  } else {
+    // If base64 content is present (usually <=1MB), decode and return.
+    const decoded = decodeContent(res);
+    if (decoded && isValidJsonText(decoded)) {
+      return decoded;
+    }
+  }
 
   // For large files GitHub omits content; fetch via download_url (gzipされるため転送量が小さい)
   if (res.download_url) {
     try {
       const fetchRes = await fetch(res.download_url);
       if (fetchRes.ok) {
-        return await fetchRes.text();
+        const text = await fetchRes.text();
+        if (isValidJsonText(text)) {
+          return text;
+        }
       }
     } catch (e) {
       console.warn('Failed fetching download_url', e);
@@ -138,7 +162,7 @@ const fetchIndexFile = async (owner, repo, branch, path) => {
 
   // Last resort: try raw (not expected to hit normally)
   const raw = await github.getFile(owner, repo, branch, path, true, { suppressStatuses: [404] });
-  if (typeof raw === 'string' && raw.trim() !== '') {
+  if (typeof raw === 'string' && isValidJsonText(raw)) {
     return raw;
   }
 
