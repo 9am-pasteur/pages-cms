@@ -12,7 +12,7 @@ It allows you to edit your website's content directly on GitHub via a user-frien
 
 For full documentation, go to [pagescms.org/docs](https://pagescms.org/docs)
 
-この fork 固有の保守メモ・オリジナルとの差分は [CUSTOMIZATIONS.md](/home/hteru/pages-cms/CUSTOMIZATIONS.md) を参照してください。
+この fork 固有の保守メモ・オリジナルとの差分は [CUSTOMIZATIONS.md](./CUSTOMIZATIONS.md) を参照してください。
 
 ### Rich text editor options
 
@@ -263,9 +263,9 @@ Cloudflare has very generous free tiers and can also host your actual website. I
 - Private key を定期的に再発行し、`GITHUB_APP_PRIVATE_KEY` を更新。
 - 事故時は App の key を失効（削除）し、必要なら App を uninstall してアクセス遮断。
 
-補足: `proxy_github_app` の設計理由や内部実装メモ（差分管理の観点）は [CUSTOMIZATIONS.md](/home/hteru/pages-cms/CUSTOMIZATIONS.md) を参照してください。
+補足: `proxy_github_app` の設計理由や内部実装メモ（差分管理の観点）は [CUSTOMIZATIONS.md](./CUSTOMIZATIONS.md) を参照してください。
 
-設定値のひな型は [examples/cloudflare/wrangler.toml.example](/home/hteru/pages-cms/examples/cloudflare/wrangler.toml.example) も参照してください。
+設定値のひな型は [examples/cloudflare/wrangler.toml.example](./examples/cloudflare/wrangler.toml.example) も参照してください。
 
 ## Optional: インデックス生成（大規模コレクション向け）
 
