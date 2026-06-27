@@ -12,6 +12,8 @@ It allows you to edit your website's content directly on GitHub via a user-frien
 
 For full documentation, go to [pagescms.org/docs](https://pagescms.org/docs)
 
+この fork 固有の保守メモ・オリジナルとの差分は [CUSTOMIZATIONS.md](/home/hteru/pages-cms/CUSTOMIZATIONS.md) を参照してください。
+
 ### Rich text editor options
 
 Pages CMS (Vue版) では、`rich-text` フィールドに対して 2 種類のエディタを選べます。
@@ -23,8 +25,6 @@ Pages CMS (Vue版) では、`rich-text` フィールドに対して 2 種類の�
   - Cloudinary メディア挿入は2通り:
     1. **独自ダイアログをリバースプロキシ**: `CLOUDINARY_DIALOG_URL` を環境変数に指定すると、そのURLを同一オリジンで iframe 表示し、`insertIt()` を呼び出せます。
     2. **Cloudinary Media Library Widget (MLW)**: 環境変数 `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`（任意で `CLOUDINARY_USERNAME`）を設定すると、公式MLWがCKEditorダイアログ内で開き、既存アセットの検索・選択・アップロードが可能になります。
-  - Tip: CKEditor 4.22.1 は OSS 版なのでライセンス的に同梱可能（LTS版は商用ライセンスが必要）。
-  - 本リポジトリには CKEditor 4.22.1 OSS 版を `public/js/ckeditor` 配下にライセンス文書付きで同梱しています（GPL/LGPL/MPL トリプルライセンス）。
 
 設定例（.pages.yml の抜粋）:
 
@@ -59,7 +59,7 @@ fields:
 - 候補の説明文は Markdown をレンダリングして表示します（リンク可）。
 - `CMS_TAG_SUGGEST_PROVIDERS` 未設定時は provider 解決に失敗するため、`/api/tag-suggest` は利用できません。
 
-> 重要: `CMS_TAG_SUGGEST_PROVIDERS` を設定して使う場合、`/api/tag-suggest` へのアクセス制限（Cloudflare Access または Basic 認証）を必ず有効にしてください。  
+> 重要: `CMS_TAG_SUGGEST_PROVIDERS` を設定して使う場合、`/api/tag-suggest` へのアクセス制限（Cloudflare Access または Basic 認証）を必ず有効にしてください。
 > キーはレスポンスで露出しませんが、未保護だと第三者にAPI中継を悪用される可能性があります。
 
 Cloudflare Pages の Variables/Secrets 例:
@@ -262,6 +262,8 @@ Cloudflare has very generous free tiers and can also host your actual website. I
 9. **ローテーション（運用）**
 - Private key を定期的に再発行し、`GITHUB_APP_PRIVATE_KEY` を更新。
 - 事故時は App の key を失効（削除）し、必要なら App を uninstall してアクセス遮断。
+
+補足: `proxy_github_app` の設計理由や内部実装メモ（差分管理の観点）は [CUSTOMIZATIONS.md](/home/hteru/pages-cms/CUSTOMIZATIONS.md) を参照してください。
 
 設定値のひな型は [examples/cloudflare/wrangler.toml.example](/home/hteru/pages-cms/examples/cloudflare/wrangler.toml.example) も参照してください。
 
