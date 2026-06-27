@@ -88,7 +88,7 @@
           <table class="table mb-4">
             <!-- Header s-->
             <thead>
-              <th v-for="field in view.config.fields" :class="[ field == view.config.primary ? 'primary-field' : '', `field-type-${fieldsSchemas[field]?.type}` ]">{{ fieldsSchemas[field]?.label }}</th>
+              <th v-for="field in view.config.fields" :class="[ field == view.config.primary ? 'primary-field' : '', `field-type-${fieldsSchemas[field]?.type}` ]">{{ fieldsSchemas[field]?.label || field }}</th>
               <th class="actions">&nbsp;</th>
             </thead>
             <tbody>
@@ -115,12 +115,12 @@
                 <td v-for="field in view.config.fields" :class="[ field == view.config.primary ? 'primary-field' : '', `field-type-${fieldsSchemas[field]?.type}` ]">
                   <template v-if="field == view.config.primary">
                     <router-link :to="{ name: 'edit', params: { name: name, path: item.path } }">
-                      <View :field="fieldsSchemas[field]" :value="item.fields?.[field]"/>
+                      <View :field="fieldsSchemas[field]" :value="getFieldValue(item, field)"/>
                     </router-link>
                   </template>
                   <template v-else>
                     <div>
-                      <View :field="fieldsSchemas[field]" :value="item.fields?.[field]"/>
+                      <View :field="fieldsSchemas[field]" :value="getFieldValue(item, field)"/>
                     </div>
                   </template>
                 </td>
@@ -272,7 +272,10 @@ const contents = computed(() => {
 });
 const schema = computed(() => props.config.content.find(item => item.name === props.name));
 const schemaFields = computed(() => {
-  let fieldsArray = schema.value.fields ? JSON.parse(JSON.stringify(schema.value.fields)) : [{ name: 'filename', label: 'Filename', type: 'string' }];
+  let fieldsArray = schema.value.fields ? JSON.parse(JSON.stringify(schema.value.fields)) : [];
+  if (!fieldsArray.find(field => field.name === 'filename')) {
+    fieldsArray.unshift({ name: 'filename', label: 'Filename', type: 'string' });
+  }
   // TODO: this is weak as the first entry may NOT have a date in the filename
   if (collection.value?.[0]?.fields?.date && !fieldsArray.find(field => field.name === 'date')) {
     fieldsArray.push({ name: 'date', label: 'Date', type: 'date' });
@@ -438,8 +441,8 @@ const viewContents = computed(() => {
   viewFiles = viewFiles.slice().sort((a, b) => {
     const sortKey = view.sort;
     const fieldSchema = fieldsSchemas.value[sortKey];
-    let valA = a.fields?.[sortKey];
-    let valB = b.fields?.[sortKey];
+    let valA = getFieldValue(a, sortKey);
+    let valB = getFieldValue(b, sortKey);
     // Handle dates
     if (fieldSchema?.type === 'date') {
       const dayA = moment(valA, dateFormat);
@@ -531,6 +534,13 @@ const setSearch = () => {
       }
     });
   });
+};
+
+const getFieldValue = (item, field) => {
+  if (field === 'filename') {
+    return item?.filename || '';
+  }
+  return item?.fields?.[field];
 };
 
 const setView = () => {
