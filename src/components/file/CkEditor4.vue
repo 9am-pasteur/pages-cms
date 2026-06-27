@@ -1,16 +1,33 @@
 <template>
-  <div class="relative">
-    <div v-if="status === 'loading'" class="bg-neutral-150 dark:bg-neutral-800 border-neutral-150 dark:border-neutral-800 py-2 px-3 h-24 rounded-xl flex items-center justify-center absolute inset-0 z-10">
-      <div class="spinner-black"></div>
+  <div class="relative ckeditor4-host">
+    <div class="mb-2 flex items-center gap-2">
+      <div class="text-xs text-neutral-400 dark:text-neutral-500">Preview width</div>
+      <div class="flex items-center gap-1 flex-wrap">
+        <button
+          v-for="preset in widthPresets"
+          :key="preset.value"
+          type="button"
+          class="btn-sm"
+          :class="selectedWidth === preset.value ? '!bg-neutral-950 !text-white dark:!bg-white dark:!text-neutral-950' : ''"
+          @click="selectedWidth = preset.value"
+        >
+          {{ preset.label }}
+        </button>
+      </div>
     </div>
-    <textarea ref="textareaEl"></textarea>
-    <p v-if="status === 'error'" class="text-red-500 mt-2 text-sm">CKEditor 4 が読み込まれていません。`public/js/ckeditor/ckeditor.js` を配置してください。</p>
+    <div class="ckeditor4-width-box" :style="widthStyle">
+      <div v-if="status === 'loading'" class="bg-neutral-150 dark:bg-neutral-800 border-neutral-150 dark:border-neutral-800 py-2 px-3 h-24 rounded-xl flex items-center justify-center absolute inset-0 z-10">
+        <div class="spinner-black"></div>
+      </div>
+      <textarea ref="textareaEl"></textarea>
+      <p v-if="status === 'error'" class="text-red-500 mt-2 text-sm">CKEditor 4 が読み込まれていません。`public/js/ckeditor/ckeditor.js` を配置してください。</p>
+    </div>
   </div>
 </template>
 
 <script setup>
 // Minimal CKEditor4 wrapper with Markdown/HTML in/out parity to TipTap
-import { inject, onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, inject, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { marked } from 'marked';
 import TurndownService from 'turndown';
 import githubImg from '@/services/githubImg';
@@ -32,6 +49,33 @@ const props = defineProps({
 const textareaEl = ref(null);
 const ck = ref(null);
 const status = ref('loading');
+const selectedWidth = ref(String(props.options?.previewWidth || 'fluid'));
+
+const widthPresets = computed(() => {
+  const configured = Array.isArray(props.options?.previewWidthPresets)
+    ? props.options.previewWidthPresets
+    : ['fluid', 375, 640, 896, 960, 1200];
+  return configured
+    .map((item) => {
+      if (typeof item === 'number') {
+        return { value: String(item), label: `${item}px` };
+      }
+      const normalized = String(item || '').trim().toLowerCase();
+      if (!normalized) return null;
+      if (normalized === 'fluid') return { value: 'fluid', label: 'Fluid' };
+      const parsed = Number(normalized);
+      if (!Number.isFinite(parsed) || parsed <= 0) return null;
+      return { value: String(parsed), label: `${parsed}px` };
+    })
+    .filter(Boolean);
+});
+
+const widthStyle = computed(() => {
+  if (selectedWidth.value === 'fluid') return { width: '100%' };
+  const px = Number(selectedWidth.value);
+  if (!Number.isFinite(px) || px <= 0) return { width: '100%' };
+  return { width: `min(${px}px, 100%)` };
+});
 
 // Lazy-load CKEditor script from /js/ckeditor/ckeditor.js when not present.
 let ckLoaderPromise = null;
@@ -121,3 +165,15 @@ onBeforeUnmount(() => {
   }
 });
 </script>
+
+<style scoped>
+.ckeditor4-width-box {
+  margin-left: auto;
+  margin-right: auto;
+  transition: width .15s ease-in-out;
+}
+
+.ckeditor4-host :deep(.cke) {
+  width: 100% !important;
+}
+</style>

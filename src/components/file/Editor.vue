@@ -100,7 +100,13 @@
       </div>
     </header>
     <!-- Fields -->
-    <main class="mx-auto p-4 lg:p-8" :class="{ 'max-w-4xl': mode !== 'datagrid'}">
+    <main
+      class="mx-auto p-4 lg:p-8"
+      :class="{
+        'max-w-4xl': mode !== 'datagrid' && !isCkEditorPreviewEnabled,
+        'max-w-screen-xl': mode !== 'datagrid' && isCkEditorPreviewEnabled,
+      }"
+    >
       <h1 v-if="displayTitle" class="font-semibold text-2xl lg:text-4xl mb-8">{{ displayTitle }}</h1>
       <div v-if="displayDescription" v-html="displayDescription" class="mb-8 prose"></div>
       <template v-if="model || model === ''">
@@ -236,6 +242,10 @@ const schemaValidation = computed(() => {
   }
 });
 const displayTitle = ref('');
+const isCkEditorPreviewEnabled = computed(() => {
+  return Array.isArray(schema.value?.fields)
+    && schema.value.fields.some((field) => field?.type === 'rich-text' && field?.options?.editor === 'ckeditor4');
+});
 const displayDescription = computed(() => {
   let markdownDescription = '';
   if (props.description) {
