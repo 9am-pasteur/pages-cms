@@ -118,6 +118,10 @@ const placeholder = computed(() => props.field.options?.placeholder || 'Type a t
 const provider = computed(() => String(props.field.options?.suggestProvider || '').trim());
 const minQueryLength = computed(() => Number(props.field.options?.minQueryLength) || 0);
 const contextFields = computed(() => Array.isArray(props.field.options?.contextFields) ? props.field.options.contextFields : []);
+const fieldPayload = computed(() => {
+  const payload = props.field.options?.payload;
+  return payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
+});
 const dropdownVisible = computed(() => isFocused.value && (loading.value || hasFetched.value));
 const activeTagDetail = computed(() => {
   const key = activeTagKey.value;
@@ -172,6 +176,7 @@ const requestSuggestions = async (queryValue, signal) => {
       tokens: tags.value,
       record: collectRecord(),
       field: props.field.name,
+      payload: fieldPayload.value,
     }),
     signal,
   });

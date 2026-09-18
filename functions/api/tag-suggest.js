@@ -1,6 +1,7 @@
 import { jsonResponse } from '../lib/api-errors';
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+const allowedFieldPayloadKeys = new Set(['lang', 'collection', 'taxonomy', 'domain']);
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -55,6 +56,17 @@ const fetchJsonWithTimeout = async (url, init, timeoutMs) => {
   }
 };
 
+const pickAllowedFieldPayload = (value) => {
+  if (!isObject(value)) return {};
+  const result = {};
+  for (const [key, raw] of Object.entries(value)) {
+    if (!allowedFieldPayloadKeys.has(key)) continue;
+    if (raw == null) continue;
+    result[key] = String(raw);
+  }
+  return result;
+};
+
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json().catch(() => ({}));
@@ -102,6 +114,7 @@ export async function onRequestPost({ request, env }) {
       tokens: Array.isArray(body?.tokens) ? body.tokens.map((token) => String(token)) : [],
       field: String(body?.field || ''),
       record: isObject(body?.record) ? body.record : {},
+      ...pickAllowedFieldPayload(body?.payload),
       ...(isObject(provider.payload) ? provider.payload : {}),
     };
 

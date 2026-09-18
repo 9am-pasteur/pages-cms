@@ -58,6 +58,10 @@ fields:
 - 接続先URLはクライアント指定ではなく、環境変数 `CMS_TAG_SUGGEST_PROVIDERS` の provider 定義から解決します。
 - 候補の説明文は Markdown をレンダリングして表示します（リンク可）。
 - `CMS_TAG_SUGGEST_PROVIDERS` 未設定時は provider 解決に失敗するため、`/api/tag-suggest` は利用できません。
+- `.pages.yml` の `options.payload` で、provider へ追加パラメータを渡せます。
+  - 現在 allowlist で許可されるキーは `lang` / `collection` / `taxonomy` / `domain` のみです。
+  - これ以外のキーは Functions 側で破棄されます。
+  - 同名キーが `CMS_TAG_SUGGEST_PROVIDERS.<provider>.payload` にある場合は、環境変数側の値が優先されます。
 
 > 重要: `CMS_TAG_SUGGEST_PROVIDERS` を設定して使う場合、`/api/tag-suggest` へのアクセス制限（Cloudflare Access または Basic 認証）を必ず有効にしてください。
 > キーはレスポンスで露出しませんが、未保護だと第三者にAPI中継を悪用される可能性があります。
@@ -85,6 +89,7 @@ fields:
     options:
       suggestProvider: keywords-ja
       contextFields: [title, body]
+      payload: { lang: ja, collection: news }
       minQueryLength: 0
       placeholder: タグを入力
 ```
