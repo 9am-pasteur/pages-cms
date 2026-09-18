@@ -112,7 +112,7 @@
       <template v-if="model || model === ''">
         <template v-if="['yaml-frontmatter', 'json-frontmatter', 'toml-frontmatter', 'yaml', 'json', 'toml'].includes(mode)">
           <template v-if="schema && schema.fields">
-            <field v-for="field in schema.fields" :key="field.name" :field="field" :model="model" ref="fieldRefs"></field>
+            <field v-for="field in resolvedSchemaFields" :key="field.name" :field="field" :model="model" ref="fieldRefs"></field>
           </template>
           <template v-else>
             <CodeMirror v-model="model" :language="extension" :validation="schemaValidation"/>
@@ -204,6 +204,27 @@ const props = defineProps({
 const status = ref('loading');
 const provider = computed(() => github.currentProviderConfig());
 const schema = computed(() => props.name ? getSchemaByName(props.config, props.name) : null);
+const resolvedSchemaFields = computed(() => {
+  const fields = schema.value?.fields;
+  const profiles = schema.value?.tagSuggestProfiles;
+  if (!Array.isArray(fields) || !profiles || typeof profiles !== 'object') {
+    return fields;
+  }
+  return fields.map((field) => {
+    if (field?.type !== 'tag-suggest') return field;
+    const profileName = String(field?.options?.profile || '').trim();
+    if (!profileName) return field;
+    const profile = profiles[profileName];
+    if (!profile || typeof profile !== 'object' || Array.isArray(profile)) return field;
+    return {
+      ...field,
+      options: {
+        ...profile,
+        ...(field.options || {}),
+      },
+    };
+  });
+});
 const collectionName = computed(() => schema.value?.name || schema.value?.path?.split('/').filter(Boolean).pop());
 const extension = computed(() => schema.value?.extension ?? /(?:\.([^.]+))?$/.exec(props.path)[1]);
 const mode = computed(() => props.format || schema.value?.format || 'raw');

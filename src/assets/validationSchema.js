@@ -223,6 +223,34 @@ const validationSchema = {
           },
           "minItems": 1,
           "errorMessage": "Property 'fields' must be an array of field objects with at least one element."
+        },
+        "tagSuggestProfiles": {
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "contextFields": {
+                "type": "array",
+                "items": { "type": "string" },
+                "errorMessage": "Each profile 'contextFields' must be an array of strings."
+              },
+              "minQueryLength": {
+                "type": "integer",
+                "minimum": 0,
+                "errorMessage": "Each profile 'minQueryLength' must be an integer >= 0."
+              },
+              "placeholder": {
+                "type": "string",
+                "errorMessage": "Each profile 'placeholder' must be a string."
+              },
+              "payload": {
+                "type": "object",
+                "errorMessage": "Each profile 'payload' must be an object."
+              }
+            },
+            "additionalProperties": true
+          },
+          "errorMessage": "Property 'tagSuggestProfiles' must be an object if specified."
         }
       },
       "required": ["name", "type", "path"],

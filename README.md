@@ -64,11 +64,9 @@ fields:
   - `CMS_TAG_SUGGEST_PROVIDERS.<provider>.payloadDefaults` に provider ごとの既定値を置けます（フィールド側 `options.payload` で上書き可能）。
   - 同名キーが `CMS_TAG_SUGGEST_PROVIDERS.<provider>.payload` にある場合は、環境変数側の値が最優先されます（強制上書き）。
 - Upstream へ送る payload には `provider` が常に含まれます。
-- `contextFields` / `minQueryLength` / `placeholder` も provider ごとのUIデフォルトを設定できます:
-  - `contextFieldsDefaults`
-  - `minQueryLengthDefault`
-  - `placeholderDefault`
-  - 優先順位は `field.options` > `provider defaults` > 組み込み既定値。
+- 同一コレクション内で `tag-suggest` 設定を使い回す場合は、`.pages.yml` の `tagSuggestProfiles` を使えます。
+  - `field.options.profile` でプロファイル名を指定
+  - 優先順位は `field.options` > `tagSuggestProfiles[profile]` > 組み込み既定値。
 
 > 重要: `CMS_TAG_SUGGEST_PROVIDERS` を設定して使う場合、`/api/tag-suggest` へのアクセス制限（Cloudflare Access または Basic 認証）を必ず有効にしてください。
 > キーはレスポンスで露出しませんが、未保護だと第三者にAPI中継を悪用される可能性があります。
@@ -81,9 +79,6 @@ Cloudflare Pages の Variables/Secrets 例:
     "endpoint": "https://example.com/tag-suggest",
     "apiKey": "YOUR_API_KEY",
     "apiKeyHeader": "x-api-key",
-    "contextFieldsDefaults": ["title", "body"],
-    "minQueryLengthDefault": 1,
-    "placeholderDefault": "キーワードを入力",
     "payloadDefaults": { "lang": "ja", "collection": "news" },
     "payload": { "domain": "iasa.example" },
     "timeoutMs": 8000,
@@ -92,18 +87,26 @@ Cloudflare Pages の Variables/Secrets 例:
 }
 ```
 
-`.pages.yml` 例:
+`.pages.yml` 例（コレクション内プロファイルを使用）:
 
 ```yaml
-fields:
-  - name: tags
-    type: tag-suggest
-    options:
-      suggestProvider: keywords-ja
-      contextFields: [title, body] # 省略時は provider の contextFieldsDefaults
-      minQueryLength: 0            # 省略時は provider の minQueryLengthDefault
-      placeholder: タグを入力       # 省略時は provider の placeholderDefault
-      payload: { lang: ja, collection: news }
+content:
+  - name: news-ja
+    type: collection
+    path: src/news-ja
+    tagSuggestProfiles:
+      keywords-ja-news:
+        suggestProvider: keywords-ja
+        contextFields: [title, body]
+        minQueryLength: 1
+        placeholder: キーワードを入力
+        payload: { lang: ja, collection: news }
+    fields:
+      - name: tags
+        type: tag-suggest
+        options:
+          profile: keywords-ja-news
+          payload: { taxonomy: events } # profileの値を上書き可能
 ```
 
 ## How it works
