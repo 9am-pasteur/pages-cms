@@ -67,6 +67,8 @@ const pickAllowedFieldPayload = (value) => {
   return result;
 };
 
+const pickAllowedProviderPayloadDefaults = (value) => pickAllowedFieldPayload(value);
+
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json().catch(() => ({}));
@@ -110,13 +112,16 @@ export async function onRequestPost({ request, env }) {
     const timeoutMs = clamp(Number(provider.timeoutMs) || 8000, 1000, 20000);
     const maxItems = clamp(Number(provider.maxItems) || 20, 1, 100);
     const payload = {
+      provider: providerId,
       query: String(body?.query || ''),
       tokens: Array.isArray(body?.tokens) ? body.tokens.map((token) => String(token)) : [],
       field: String(body?.field || ''),
       record: isObject(body?.record) ? body.record : {},
+      ...pickAllowedProviderPayloadDefaults(provider?.payloadDefaults),
       ...pickAllowedFieldPayload(body?.payload),
       ...(isObject(provider.payload) ? provider.payload : {}),
     };
+    payload.provider = providerId;
 
     const upstream = await fetchJsonWithTimeout(endpoint, {
       method: 'POST',

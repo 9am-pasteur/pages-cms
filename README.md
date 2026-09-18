@@ -61,7 +61,9 @@ fields:
 - `.pages.yml` の `options.payload` で、provider へ追加パラメータを渡せます。
   - 現在 allowlist で許可されるキーは `lang` / `collection` / `taxonomy` / `domain` のみです。
   - これ以外のキーは Functions 側で破棄されます。
-  - 同名キーが `CMS_TAG_SUGGEST_PROVIDERS.<provider>.payload` にある場合は、環境変数側の値が優先されます。
+  - `CMS_TAG_SUGGEST_PROVIDERS.<provider>.payloadDefaults` に provider ごとの既定値を置けます（フィールド側 `options.payload` で上書き可能）。
+  - 同名キーが `CMS_TAG_SUGGEST_PROVIDERS.<provider>.payload` にある場合は、環境変数側の値が最優先されます（強制上書き）。
+- Upstream へ送る payload には `provider` が常に含まれます。
 
 > 重要: `CMS_TAG_SUGGEST_PROVIDERS` を設定して使う場合、`/api/tag-suggest` へのアクセス制限（Cloudflare Access または Basic 認証）を必ず有効にしてください。
 > キーはレスポンスで露出しませんが、未保護だと第三者にAPI中継を悪用される可能性があります。
@@ -74,6 +76,8 @@ Cloudflare Pages の Variables/Secrets 例:
     "endpoint": "https://example.com/tag-suggest",
     "apiKey": "YOUR_API_KEY",
     "apiKeyHeader": "x-api-key",
+    "payloadDefaults": { "lang": "ja", "collection": "news" },
+    "payload": { "domain": "iasa.example" },
     "timeoutMs": 8000,
     "maxItems": 20
   }
