@@ -51,6 +51,7 @@
       class="absolute z-50 mt-2 w-full max-h-80 overflow-y-auto rounded-xl border border-neutral-200 dark:border-neutral-750 bg-white dark:bg-neutral-950 custom-shadow"
     >
       <div v-if="loading" class="px-3 py-2 text-sm text-neutral-400 dark:text-neutral-500">Loading suggestions...</div>
+      <div v-else-if="suggestError" class="px-3 py-2 text-sm text-red-500 dark:text-red-400">{{ suggestError }}</div>
       <div v-else-if="suggestions.length === 0" class="px-3 py-2 text-sm text-neutral-400 dark:text-neutral-500">No suggestions</div>
       <ul v-else>
         <li v-for="item in suggestions" :key="item.tag">
@@ -103,6 +104,7 @@ const suggestions = ref([]);
 const loading = ref(false);
 const hasFetched = ref(false);
 const errors = ref([]);
+const suggestError = ref('');
 const isFocused = ref(false);
 const initialFetchTimer = ref(null);
 const abortController = ref(null);
@@ -175,7 +177,10 @@ const requestSuggestions = async (queryValue, signal) => {
   });
 
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) return [];
+  if (!response.ok) {
+    const message = String(data?.message || data?.error || `HTTP ${response.status}`).trim();
+    throw new Error(message || `HTTP ${response.status}`);
+  }
   return Array.isArray(data.items) ? data.items : [];
 };
 
@@ -206,6 +211,7 @@ const fetchSuggestions = async () => {
   abortController.value?.abort();
   abortController.value = new AbortController();
   loading.value = true;
+  suggestError.value = '';
 
   try {
     const items = await requestSuggestions(query.value, abortController.value.signal);
@@ -217,6 +223,7 @@ const fetchSuggestions = async () => {
   } catch (error) {
     if (error?.name !== 'AbortError') {
       suggestions.value = [];
+      suggestError.value = String(error?.message || 'Failed to load suggestions.');
     }
   } finally {
     hasFetched.value = true;
@@ -310,6 +317,7 @@ const handleKeydown = (event) => {
 const handleFocus = () => {
   isFocused.value = true;
   activeTagKey.value = '';
+  suggestError.value = '';
   if (blurTimer.value) {
     clearTimeout(blurTimer.value);
     blurTimer.value = null;
@@ -324,6 +332,7 @@ const handleBlur = () => {
   blurTimer.value = setTimeout(() => {
     isFocused.value = false;
     suggestions.value = [];
+    suggestError.value = '';
     hasFetched.value = false;
   }, 120);
 };

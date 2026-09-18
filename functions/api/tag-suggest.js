@@ -26,7 +26,9 @@ const normalizeItems = (data) => {
       ? data.items
       : (Array.isArray(data?.candidates)
         ? data.candidates
-        : (Array.isArray(data?.tags) ? data.tags : [])));
+        : (Array.isArray(data?.tags)
+          ? data.tags
+          : (Array.isArray(data?.data) ? data.data : []))));
 
   return source
     .map((item) => {
@@ -118,10 +120,19 @@ export async function onRequestPost({ request, env }) {
     }
 
     if (!upstream.ok) {
+      const upstreamError = String(upstreamJson?.error || upstreamJson?.message || '').trim();
       return jsonResponse({
         error: 'UPSTREAM_ERROR',
-        message: `Tag suggest upstream returned ${upstream.status}`,
+        message: upstreamError || `Tag suggest upstream returned ${upstream.status}`,
       }, 502);
+    }
+
+    if (upstreamJson && upstreamJson.success === false) {
+      const upstreamError = String(upstreamJson?.error || upstreamJson?.message || '').trim();
+      return jsonResponse({
+        error: 'UPSTREAM_ERROR',
+        message: upstreamError || 'Tag suggest upstream reported success:false',
+      }, 422);
     }
 
     const items = normalizeItems(upstreamJson).slice(0, maxItems);
