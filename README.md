@@ -54,64 +54,13 @@ fields:
 
 `type: tag-suggest` を使うと、タグを Gmail の宛先入力のように複数入力できます。保存値はカンマ区切り文字列です（例: `tag-a, tag-b`）。
 
-- 候補取得APIは `POST /api/tag-suggest` を通して呼び出します。
-- 接続先URLはクライアント指定ではなく、環境変数 `CMS_TAG_SUGGEST_PROVIDERS` の provider 定義から解決します。
-- 候補の説明文は Markdown をレンダリングして表示します（リンク可）。
-- `CMS_TAG_SUGGEST_PROVIDERS` 未設定時は provider 解決に失敗するため、`/api/tag-suggest` は利用できません。
-- `.pages.yml` の `options.payload` で、provider へ追加パラメータを渡せます。
-  - 現在 allowlist で許可されるキーは `lang` / `collection` / `taxonomy` / `domain` のみです。
-  - これ以外のキーは Functions 側で破棄されます。
-  - `CMS_TAG_SUGGEST_PROVIDERS.<provider>.payloadDefaults` に provider ごとの既定値を置けます（フィールド側 `options.payload` で上書き可能）。
-  - 同名キーが `CMS_TAG_SUGGEST_PROVIDERS.<provider>.payload` にある場合は、環境変数側の値が最優先されます（強制上書き）。
-- Upstream へ送る payload には `provider` が常に含まれます。
-- 同一コレクション内で `tag-suggest` 設定を使い回す場合は、`.pages.yml` の `tagSuggestProfiles` を使えます。
-  - `field.options.profile` でプロファイル名を指定
-  - 優先順位は `field.options` > `tagSuggestProfiles[profile]` > 組み込み既定値。
-- `contextFields` には、通常のフィールド名に加えて次の予約キー（先頭 `_`）を指定できます。
-  - `_path`: レコードのリポジトリ内パス（例: `src/news-ja/2026-01-19-foo.md`）
-  - `_filename`: ファイル名（例: `2026-01-19-foo.md`）
-  - `_stem`: 拡張子なしファイル名（例: `2026-01-19-foo`）
+- フロントエンドは直接 Upstream を呼ばず、`/api/tag-suggest`（中継）を経由します。
+- 接続先URL/APIキーは `CMS_TAG_SUGGEST_PROVIDERS` で設定します。
+- Upstream の入力・出力仕様、provider/profile設定、セキュリティ要件は次を参照してください。
+  - [docs/tag-suggest.md](./docs/tag-suggest.md)
 
 > 重要: `CMS_TAG_SUGGEST_PROVIDERS` を設定して使う場合、`/api/tag-suggest` へのアクセス制限（Cloudflare Access または Basic 認証）を必ず有効にしてください。
 > キーはレスポンスで露出しませんが、未保護だと第三者にAPI中継を悪用される可能性があります。
-
-Cloudflare Pages の Variables/Secrets 例:
-
-```json
-{
-  "keywords-ja": {
-    "endpoint": "https://example.com/tag-suggest",
-    "apiKey": "YOUR_API_KEY",
-    "apiKeyHeader": "x-api-key",
-    "payloadDefaults": { "lang": "ja", "collection": "news" },
-    "payload": { "domain": "iasa.example" },
-    "timeoutMs": 8000,
-    "maxItems": 20
-  }
-}
-```
-
-`.pages.yml` 例（コレクション内プロファイルを使用）:
-
-```yaml
-content:
-  - name: news-ja
-    type: collection
-    path: src/news-ja
-    tagSuggestProfiles:
-      keywords-ja-news:
-        suggestProvider: keywords-ja
-        contextFields: [title, body, _stem]
-        minQueryLength: 1
-        placeholder: キーワードを入力
-        payload: { lang: ja, collection: news }
-    fields:
-      - name: tags
-        type: tag-suggest
-        options:
-          profile: keywords-ja-news
-          payload: { taxonomy: events } # profileの値を上書き可能
-```
 
 ## How it works
 
