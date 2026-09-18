@@ -67,6 +67,10 @@ fields:
 - 同一コレクション内で `tag-suggest` 設定を使い回す場合は、`.pages.yml` の `tagSuggestProfiles` を使えます。
   - `field.options.profile` でプロファイル名を指定
   - 優先順位は `field.options` > `tagSuggestProfiles[profile]` > 組み込み既定値。
+- `contextFields` には、通常のフィールド名に加えて次の予約キー（先頭 `_`）を指定できます。
+  - `_path`: レコードのリポジトリ内パス（例: `src/news-ja/2026-01-19-foo.md`）
+  - `_filename`: ファイル名（例: `2026-01-19-foo.md`）
+  - `_stem`: 拡張子なしファイル名（例: `2026-01-19-foo`）
 
 > 重要: `CMS_TAG_SUGGEST_PROVIDERS` を設定して使う場合、`/api/tag-suggest` へのアクセス制限（Cloudflare Access または Basic 認証）を必ず有効にしてください。
 > キーはレスポンスで露出しませんが、未保護だと第三者にAPI中継を悪用される可能性があります。
@@ -97,7 +101,7 @@ content:
     tagSuggestProfiles:
       keywords-ja-news:
         suggestProvider: keywords-ja
-        contextFields: [title, body]
+        contextFields: [title, body, _stem]
         minQueryLength: 1
         placeholder: キーワードを入力
         payload: { lang: ja, collection: news }

@@ -112,7 +112,7 @@
       <template v-if="model || model === ''">
         <template v-if="['yaml-frontmatter', 'json-frontmatter', 'toml-frontmatter', 'yaml', 'json', 'toml'].includes(mode)">
           <template v-if="schema && schema.fields">
-            <field v-for="field in resolvedSchemaFields" :key="field.name" :field="field" :model="model" ref="fieldRefs"></field>
+            <field v-for="field in resolvedSchemaFields" :key="field.name" :field="field" :model="model" :meta="tagSuggestMeta" ref="fieldRefs"></field>
           </template>
           <template v-else>
             <CodeMirror v-model="model" :language="extension" :validation="schemaValidation"/>
@@ -235,6 +235,16 @@ const initialModel = ref(null);
 const isModelChanged = computed(() => JSON.stringify(sanitizeObject(model.value)) !== JSON.stringify(sanitizeObject(initialModel.value)));
 const currentPath = ref(null);
 const newPath = ref(null);
+const tagSuggestMeta = computed(() => {
+  const path = String(currentPath.value || props.path || '').trim();
+  const filename = path ? path.split('/').pop() || '' : '';
+  const stem = filename ? filename.replace(/\.[^/.]+$/, '') : '';
+  return {
+    _path: path,
+    _filename: filename,
+    _stem: stem,
+  };
+});
 const folder = computed(() => {
   if (props.isNew && route.query.folder) {
     return route.query.folder;

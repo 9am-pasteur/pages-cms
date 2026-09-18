@@ -99,7 +99,8 @@ const fieldComponents = {
 
 const props = defineProps({
   field: Object,
-  model: [String, Number, Boolean, Array, Object]
+  model: [String, Number, Boolean, Array, Object],
+  meta: Object,
 });
 
 const fieldRefs = ref([]);
@@ -117,7 +118,7 @@ const fieldListSupport = computed(() => {
 
 const extraFieldProps = computed(() => {
   if (props.field.type === 'tag-suggest') {
-    return { record: props.model };
+    return { record: props.model, meta: props.meta };
   }
   return {};
 });

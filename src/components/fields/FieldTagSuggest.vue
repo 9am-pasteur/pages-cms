@@ -92,6 +92,7 @@ const props = defineProps({
   field: Object,
   modelValue: String,
   record: Object,
+  meta: Object,
 });
 
 const { validateRequired, validatePattern, validateLength } = useFieldValidation();
@@ -166,9 +167,18 @@ watch(() => props.modelValue, (nextValue) => {
 }, { immediate: true });
 
 const collectRecord = () => {
-  if (!props.record || !contextFields.value.length) return {};
+  if (!contextFields.value.length) return {};
   return contextFields.value.reduce((acc, fieldName) => {
-    acc[fieldName] = props.record[fieldName];
+    if (typeof fieldName !== 'string') return acc;
+    if (fieldName.startsWith('_')) {
+      if (props.meta && Object.prototype.hasOwnProperty.call(props.meta, fieldName)) {
+        acc[fieldName] = props.meta[fieldName];
+      }
+      return acc;
+    }
+    if (props.record && Object.prototype.hasOwnProperty.call(props.record, fieldName)) {
+      acc[fieldName] = props.record[fieldName];
+    }
     return acc;
   }, {});
 };
