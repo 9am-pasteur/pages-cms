@@ -69,6 +69,43 @@ const pickAllowedFieldPayload = (value) => {
 
 const pickAllowedProviderPayloadDefaults = (value) => pickAllowedFieldPayload(value);
 
+const normalizeContextFields = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item || '').trim()).filter(Boolean);
+};
+
+const buildProviderUiDefaults = (provider) => ({
+  contextFieldsDefaults: normalizeContextFields(provider?.contextFieldsDefaults),
+  minQueryLengthDefault: clamp(Number(provider?.minQueryLengthDefault) || 0, 0, 50),
+  placeholderDefault: String(provider?.placeholderDefault || '').trim(),
+});
+
+export async function onRequestGet({ request, env }) {
+  try {
+    const url = new URL(request.url);
+    const providerId = String(url.searchParams.get('provider') || '').trim();
+    if (!providerId) {
+      return jsonResponse({ error: 'BAD_REQUEST', message: 'provider is required' }, 400);
+    }
+
+    const providers = parseProviders(env);
+    const provider = providers[providerId];
+    if (!isObject(provider)) {
+      return jsonResponse({ error: 'BAD_REQUEST', message: `Unknown provider: ${providerId}` }, 400);
+    }
+
+    return jsonResponse({
+      provider: providerId,
+      defaults: buildProviderUiDefaults(provider),
+    }, 200);
+  } catch (error) {
+    return jsonResponse({
+      error: 'INTERNAL_ERROR',
+      message: String(error?.message || 'Unexpected server error'),
+    }, 500);
+  }
+}
+
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json().catch(() => ({}));

@@ -113,11 +113,36 @@ const blurTimer = ref(null);
 const tagDetails = ref({});
 const activeTagKey = ref('');
 const detailLoadingKey = ref('');
+const providerDefaults = ref({
+  contextFieldsDefaults: [],
+  minQueryLengthDefault: 0,
+  placeholderDefault: '',
+});
 
-const placeholder = computed(() => props.field.options?.placeholder || 'Type a tag...');
 const provider = computed(() => String(props.field.options?.suggestProvider || '').trim());
-const minQueryLength = computed(() => Number(props.field.options?.minQueryLength) || 0);
-const contextFields = computed(() => Array.isArray(props.field.options?.contextFields) ? props.field.options.contextFields : []);
+const contextFields = computed(() => {
+  if (Array.isArray(props.field.options?.contextFields)) {
+    return props.field.options.contextFields;
+  }
+  return Array.isArray(providerDefaults.value.contextFieldsDefaults) ? providerDefaults.value.contextFieldsDefaults : [];
+});
+const minQueryLength = computed(() => {
+  if (props.field.options?.minQueryLength != null && props.field.options?.minQueryLength !== '') {
+    const value = Number(props.field.options.minQueryLength);
+    return Number.isFinite(value) ? value : 0;
+  }
+  const fallback = Number(providerDefaults.value.minQueryLengthDefault);
+  return Number.isFinite(fallback) ? fallback : 0;
+});
+const placeholder = computed(() => {
+  if (typeof props.field.options?.placeholder === 'string' && props.field.options.placeholder.trim() !== '') {
+    return props.field.options.placeholder;
+  }
+  if (typeof providerDefaults.value.placeholderDefault === 'string' && providerDefaults.value.placeholderDefault.trim() !== '') {
+    return providerDefaults.value.placeholderDefault;
+  }
+  return 'Type a tag...';
+});
 const fieldPayload = computed(() => {
   const payload = props.field.options?.payload;
   return payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
@@ -156,6 +181,30 @@ const setTagsFromModel = (value) => {
 
 watch(() => props.modelValue, (nextValue) => {
   setTagsFromModel(nextValue);
+}, { immediate: true });
+
+const loadProviderDefaults = async () => {
+  if (!provider.value) {
+    providerDefaults.value = { contextFieldsDefaults: [], minQueryLengthDefault: 0, placeholderDefault: '' };
+    return;
+  }
+  try {
+    const response = await fetch(`/api/tag-suggest?provider=${encodeURIComponent(provider.value)}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) return;
+    const defaults = data?.defaults || {};
+    providerDefaults.value = {
+      contextFieldsDefaults: Array.isArray(defaults.contextFieldsDefaults) ? defaults.contextFieldsDefaults : [],
+      minQueryLengthDefault: Number(defaults.minQueryLengthDefault) || 0,
+      placeholderDefault: String(defaults.placeholderDefault || ''),
+    };
+  } catch {
+    // keep local defaults
+  }
+};
+
+watch(provider, () => {
+  loadProviderDefaults();
 }, { immediate: true });
 
 const collectRecord = () => {

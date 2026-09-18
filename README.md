@@ -64,6 +64,11 @@ fields:
   - `CMS_TAG_SUGGEST_PROVIDERS.<provider>.payloadDefaults` に provider ごとの既定値を置けます（フィールド側 `options.payload` で上書き可能）。
   - 同名キーが `CMS_TAG_SUGGEST_PROVIDERS.<provider>.payload` にある場合は、環境変数側の値が最優先されます（強制上書き）。
 - Upstream へ送る payload には `provider` が常に含まれます。
+- `contextFields` / `minQueryLength` / `placeholder` も provider ごとのUIデフォルトを設定できます:
+  - `contextFieldsDefaults`
+  - `minQueryLengthDefault`
+  - `placeholderDefault`
+  - 優先順位は `field.options` > `provider defaults` > 組み込み既定値。
 
 > 重要: `CMS_TAG_SUGGEST_PROVIDERS` を設定して使う場合、`/api/tag-suggest` へのアクセス制限（Cloudflare Access または Basic 認証）を必ず有効にしてください。
 > キーはレスポンスで露出しませんが、未保護だと第三者にAPI中継を悪用される可能性があります。
@@ -76,6 +81,9 @@ Cloudflare Pages の Variables/Secrets 例:
     "endpoint": "https://example.com/tag-suggest",
     "apiKey": "YOUR_API_KEY",
     "apiKeyHeader": "x-api-key",
+    "contextFieldsDefaults": ["title", "body"],
+    "minQueryLengthDefault": 1,
+    "placeholderDefault": "キーワードを入力",
     "payloadDefaults": { "lang": "ja", "collection": "news" },
     "payload": { "domain": "iasa.example" },
     "timeoutMs": 8000,
@@ -92,10 +100,10 @@ fields:
     type: tag-suggest
     options:
       suggestProvider: keywords-ja
-      contextFields: [title, body]
+      contextFields: [title, body] # 省略時は provider の contextFieldsDefaults
+      minQueryLength: 0            # 省略時は provider の minQueryLengthDefault
+      placeholder: タグを入力       # 省略時は provider の placeholderDefault
       payload: { lang: ja, collection: news }
-      minQueryLength: 0
-      placeholder: タグを入力
 ```
 
 ## How it works
