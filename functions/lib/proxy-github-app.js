@@ -107,6 +107,10 @@ const base64url = (inputBytes) =>
     .replace(/=+$/g, '');
 
 const utf8Base64url = (value) => base64url(textEncoder.encode(value));
+const decodeBase64Utf8 = (b64) => {
+  const bytes = Uint8Array.from(atob((b64 || '').replace(/\n/g, '')), (ch) => ch.charCodeAt(0));
+  return new TextDecoder('utf-8').decode(bytes);
+};
 
 const signGithubAppJwt = async (env) => {
   const appId = getRequiredEnv(env, 'GITHUB_APP_ID');
@@ -207,7 +211,7 @@ const mapContentsToEntries = (value) => {
     type: item.type === 'dir' ? 'tree' : 'blob',
     object: item.type === 'file'
       ? {
-          text: item.content ? atob((item.content || '').replace(/\n/g, '')) : undefined,
+          text: item.content ? decodeBase64Utf8(item.content) : undefined,
           oid: item.sha,
         }
       : undefined,
@@ -250,7 +254,7 @@ export const getFileFromRepo = async ({ env, query }) => {
   const encodedPath = encodeURIComponent(path).replace(/%2F/g, '/');
   const data = await githubRequest(token, 'GET', `/repos/${repo.owner}/${repo.name}/contents/${encodedPath}`, null, { ref });
   if (query.raw === 'true' || query.raw === true) {
-    return atob((data.content || '').replace(/\n/g, ''));
+    return decodeBase64Utf8(data.content || '');
   }
   return data;
 };
