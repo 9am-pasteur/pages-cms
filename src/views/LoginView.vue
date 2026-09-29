@@ -123,7 +123,7 @@ const startOAuth = async () => {
     sessionStorage.removeItem('pkce_verifier');
   }
   sessionStorage.setItem('provider', provider.id);
-  const redirect = provider.oauth.redirectUri || (window.location.origin + '/');
+  const redirect = provider.oauth.redirectUri || `${window.location.origin}/auth/callback`;
   const params = new URLSearchParams({
     client_id: provider.oauth.clientId,
     redirect_uri: redirect,

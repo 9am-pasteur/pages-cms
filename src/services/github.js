@@ -144,6 +144,7 @@ const exchangeCode = async (code) => {
   if (!cfg?.oauth?.tokenUrl || !cfg.oauth.clientId) {
     throw new Error('OAuth provider not configured');
   }
+  const redirectUri = cfg.oauth.redirectUri || `${window.location.origin}/auth/callback`;
   const verifier = sessionStorage.getItem('pkce_verifier');
   let accessToken;
   if (storedProvider === 'github') {
@@ -151,7 +152,7 @@ const exchangeCode = async (code) => {
     const res = await axios.post('/api/github-token', {
       code,
       code_verifier: cfg.oauth.pkce ? verifier : undefined,
-      redirect_uri: cfg.oauth.redirectUri || `${window.location.origin}/auth/callback`,
+      redirect_uri: redirectUri,
     });
     accessToken = res.data.access_token;
   } else {
@@ -159,7 +160,7 @@ const exchangeCode = async (code) => {
       client_id: cfg.oauth.clientId,
       grant_type: 'authorization_code',
       code,
-      redirect_uri: cfg.oauth.redirectUri,
+      redirect_uri: redirectUri,
     });
     if (cfg.oauth.pkce && verifier) {
       body.append('code_verifier', verifier);
