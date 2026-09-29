@@ -602,12 +602,18 @@ const loadPage = async (page = 1, append = false) => {
   }
 
   let errorCount = 0;
-  const mappedFiles = files.map(file => {
+  const mappedFiles = (await Promise.all(files.map(async (file) => {
     if (file.type === 'blob' && (extension.value === '' || file.filename?.endsWith(`.${extension.value}`) || file.name?.endsWith(`.${extension.value}`))) {
       let contentObject = file.fields || {};
+      let fileText = file.object?.text;
       if (!fromIndex && serializedTypes.includes(format.value) && schema.value?.fields) {
         try {
-          contentObject = serialization.parse(file.object.text, { format: format.value, delimiters: schema.value.delimiters });
+          // Some providers return list entries without blob text; fetch raw content lazily.
+          if (typeof fileText !== 'string') {
+            const raw = await github.getFile(props.owner, props.repo, props.branch, file.path, true, { suppressStatuses: [404] });
+            if (typeof raw === 'string') fileText = raw;
+          }
+          contentObject = serialization.parse(fileText || '', { format: format.value, delimiters: schema.value.delimiters });
         } catch (error) {
           console.warn(`Error parsing frontmatter for file "${file.path}":`, error);
           errorCount++;
@@ -628,14 +634,14 @@ const loadPage = async (page = 1, append = false) => {
         sha: file.object?.oid || file.sha,
         filename: file.name || file.filename,
         path: file.path,
-        content: file.object?.text,
+        content: fileText,
         fields: contentObject,
         type: file.type,
       };
     } else if (file.type === 'tree') {
       return file;
     }
-  }).filter(item => item !== undefined);
+  }))).filter(item => item !== undefined);
 
   if (errorCount > 0) {
     const options = {
