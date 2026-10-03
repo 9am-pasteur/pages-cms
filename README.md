@@ -34,6 +34,11 @@ Pages CMS (Vue版) では、`rich-text` フィールドに対して 2 種類の�
     - `CLOUDINARY_TEMPLATE_DIR`（既定: `src/img-template`）
     - `CLOUDINARY_TEMPLATE_DEFAULT_SRCSET_WIDTHS`（既定: `300,600,900,1500`）
     - `CLOUDINARY_TEMPLATE_DEFAULT_TRANSFORM`（任意）
+  - `custom` の一覧サムネイルはバックエンドで `preview_url` を一括生成します（1件ずつ追加API呼び出しはしません）。
+    - `CLOUDINARY_PREVIEW_WIDTH`（既定: `240`）
+    - `CLOUDINARY_PREVIEW_HEIGHT`（既定: `140`）
+    - `CLOUDINARY_PREVIEW_CROP`（既定: `fill`）
+    - `authenticated/private` は署名URLで返します（または `CLOUDINARY_DELIVERY_SIGNED=true` で常に署名）。
   - strict transformations で配信URL署名が必要な場合:
     - `CLOUDINARY_DELIVERY_SIGNED=true` を指定すると、`/api/cloudinary-delivery-urls` が署名URLを返します。
   - 1画面統合の custom ダイアログ計画メモ: [docs/cloudinary-custom-dialog-plan.md](./docs/cloudinary-custom-dialog-plan.md)

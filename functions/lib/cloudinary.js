@@ -94,6 +94,30 @@ const normalizedTransform = ({ width, format = 'auto', quality = 'auto', extra =
   return parts.join(',');
 };
 
+const normalizeCloudinaryType = (type) => {
+  const t = String(type || '').trim();
+  return t || 'upload';
+};
+
+const buildCloudinaryDeliveryPath = ({ type = 'upload', transform, publicId }) =>
+  `image/${normalizeCloudinaryType(type)}/${transform}/${publicId}`;
+
+const buildCloudinaryDeliveryUrl = async ({
+  cloudName,
+  apiSecret,
+  type = 'upload',
+  transform,
+  publicId,
+  signed = false,
+}) => {
+  const path = buildCloudinaryDeliveryPath({ type, transform, publicId });
+  if (!signed) {
+    return `https://res.cloudinary.com/${cloudName}/${path}`;
+  }
+  const sig = await buildDeliverySignature(apiSecret, path);
+  return `https://res.cloudinary.com/${cloudName}/image/${normalizeCloudinaryType(type)}/s--${sig}--/${transform}/${publicId}`;
+};
+
 export {
   requireCloudinaryEnv,
   sha1Hex,
@@ -101,4 +125,7 @@ export {
   buildUploadSignature,
   buildDeliverySignature,
   normalizedTransform,
+  normalizeCloudinaryType,
+  buildCloudinaryDeliveryPath,
+  buildCloudinaryDeliveryUrl,
 };

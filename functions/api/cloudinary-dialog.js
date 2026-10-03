@@ -236,7 +236,8 @@ const renderCustomDialog = ({ request, env }) => {
         const card = document.createElement('button');
         card.type = 'button';
         card.className = 'asset' + (state.selectedAsset && state.selectedAsset.asset_id === asset.asset_id ? ' selected' : '');
-        card.innerHTML = '<img src="' + escapeHtml(asset.secure_url) + '" alt="" /><div class="meta">' + escapeHtml(asset.public_id) + '</div>';
+        var thumb = asset.preview_url || asset.secure_url;
+        card.innerHTML = '<img src="' + escapeHtml(thumb) + '" alt="" /><div class="meta">' + escapeHtml(asset.public_id) + '</div>';
         card.addEventListener('click', () => {
           state.selectedAsset = asset;
           renderAssets();

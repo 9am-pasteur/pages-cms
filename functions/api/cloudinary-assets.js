@@ -1,5 +1,10 @@
 import { jsonResponse, respondWithMappedError } from '../lib/api-errors';
-import { cloudinaryApiRequest } from '../lib/cloudinary';
+import {
+  cloudinaryApiRequest,
+  requireCloudinaryEnv,
+  buildCloudinaryDeliveryUrl,
+  normalizedTransform,
+} from '../lib/cloudinary';
 
 const toNumberInRange = (value, fallback, min, max) => {
   const n = Number(value);
@@ -63,18 +68,52 @@ export async function onRequestGet({ request, env }) {
     });
 
     const resources = Array.isArray(data?.resources) ? data.resources : [];
-    return jsonResponse({
-      resources: uniqueByAssetId(resources).map((asset) => ({
+    const { cloudName, apiSecret } = requireCloudinaryEnv(env);
+    const previewSignedByDefault = String(env.CLOUDINARY_DELIVERY_SIGNED || '').toLowerCase() === 'true';
+    const previewWidth = toNumberInRange(env.CLOUDINARY_PREVIEW_WIDTH || 240, 240, 40, 2048);
+    const previewHeight = toNumberInRange(env.CLOUDINARY_PREVIEW_HEIGHT || 140, 140, 40, 2048);
+    const previewFit = String(env.CLOUDINARY_PREVIEW_CROP || 'fill').trim() || 'fill';
+
+    const mapped = await Promise.all(uniqueByAssetId(resources).map(async (asset) => {
+      const type = String(asset?.type || 'upload');
+      const publicId = String(asset?.public_id || '');
+      const format = String(asset?.format || '').toLowerCase();
+      const isPdf = format === 'pdf';
+      const transformExtra = isPdf
+        ? `pg_1,c_${previewFit},h_${previewHeight}`
+        : `c_${previewFit},h_${previewHeight}`;
+      const transform = normalizedTransform({
+        width: previewWidth,
+        format: 'auto',
+        quality: 'auto',
+        extra: transformExtra,
+      });
+      const signed = previewSignedByDefault || type === 'authenticated' || type === 'private';
+      const preview_url = await buildCloudinaryDeliveryUrl({
+        cloudName,
+        apiSecret,
+        type,
+        transform,
+        publicId,
+        signed,
+      });
+      return {
         asset_id: asset.asset_id,
         public_id: asset.public_id,
         secure_url: asset.secure_url,
+        preview_url,
         width: asset.width,
         height: asset.height,
         format: asset.format,
+        type: asset.type,
         bytes: asset.bytes,
         created_at: asset.created_at,
         context: asset.context || null,
-      })),
+      };
+    }));
+
+    return jsonResponse({
+      resources: mapped,
       next_cursor: data?.next_cursor || null,
     });
   } catch (error) {

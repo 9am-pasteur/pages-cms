@@ -1,8 +1,8 @@
 import { jsonResponse, respondWithMappedError } from '../lib/api-errors';
 import {
   requireCloudinaryEnv,
-  buildDeliverySignature,
   normalizedTransform,
+  buildCloudinaryDeliveryUrl,
 } from '../lib/cloudinary';
 
 const parseWidths = (value) => {
@@ -13,15 +13,6 @@ const parseWidths = (value) => {
     .split(',')
     .map((v) => Number(v.trim()))
     .filter((v) => Number.isFinite(v) && v > 0);
-};
-
-const buildUnsignedUrl = ({ cloudName, publicId, transform }) =>
-  `https://res.cloudinary.com/${cloudName}/image/upload/${transform}/${publicId}`;
-
-const buildSignedUrl = async ({ cloudName, apiSecret, publicId, transform }) => {
-  const toSign = `${transform}/${publicId}`;
-  const sig = await buildDeliverySignature(apiSecret, toSign);
-  return `https://res.cloudinary.com/${cloudName}/image/upload/s--${sig}--/${toSign}`;
 };
 
 export async function onRequestPost({ request, env }) {
@@ -44,11 +35,17 @@ export async function onRequestPost({ request, env }) {
 
     const srcWidth = Number(body?.srcWidth);
     const fallbackWidth = Number.isFinite(srcWidth) && srcWidth > 0 ? srcWidth : widths[0];
+    const type = String(body?.type || 'upload');
     const build = async (width) => {
       const transform = normalizedTransform({ width, quality, format, extra });
-      return signed
-        ? buildSignedUrl({ cloudName, apiSecret, publicId, transform })
-        : buildUnsignedUrl({ cloudName, publicId, transform });
+      return buildCloudinaryDeliveryUrl({
+        cloudName,
+        apiSecret,
+        type,
+        transform,
+        publicId,
+        signed,
+      });
     };
 
     const src = await build(fallbackWidth);
