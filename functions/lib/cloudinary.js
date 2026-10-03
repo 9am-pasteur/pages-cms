@@ -132,15 +132,13 @@ const buildCloudinaryDeliveryUrl = async ({
   version = null,
   signed = false,
 }) => {
-  const v = Number(version);
-  const versionPart = Number.isFinite(v) && v > 0 ? `/v${Math.trunc(v)}` : '';
   const path = buildCloudinaryDeliveryPath({ type, transform, publicId, version });
   if (!signed) {
     return `https://res.cloudinary.com/${cloudName}/${path}`;
   }
   const toSign = buildCloudinarySignatureTarget({ transform, publicId, version });
   const sig = await buildDeliverySignature(apiSecret, toSign);
-  return `https://res.cloudinary.com/${cloudName}/image/${normalizeCloudinaryType(type)}/s--${sig}--/${transform}${versionPart}/${publicId}`;
+  return `https://res.cloudinary.com/${cloudName}/image/${normalizeCloudinaryType(type)}/s--${sig}--/${toSign}`;
 };
 
 export {
