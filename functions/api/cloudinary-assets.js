@@ -3,6 +3,7 @@ import {
   cloudinaryApiRequest,
   requireCloudinaryEnv,
   buildCloudinaryDeliveryUrl,
+  extractDeliveryPublicIdRawFromSecureUrl,
   extractDeliveryPublicIdFromSecureUrl,
 } from '../lib/cloudinary';
 
@@ -52,6 +53,7 @@ const buildPreviewTransform = ({ width, height, crop, format }) => {
 export async function onRequestGet({ request, env }) {
   try {
     const url = new URL(request.url);
+    const debugEnabled = ['1', 'true', 'yes'].includes(String(url.searchParams.get('debug') || '').toLowerCase());
     const maxResults = toNumberInRange(url.searchParams.get('max_results'), 30, 1, 100);
     const nextCursor = url.searchParams.get('next_cursor') || '';
     const q = (url.searchParams.get('q') || '').trim();
@@ -83,14 +85,12 @@ export async function onRequestGet({ request, env }) {
     const previewHeight = toNumberInRange(env.CLOUDINARY_PREVIEW_HEIGHT || 140, 140, 40, 2048);
     const previewFit = String(env.CLOUDINARY_PREVIEW_CROP || 'fill').trim() || 'fill';
 
+    const debug = [];
     const mapped = await Promise.all(uniqueByAssetId(resources).map(async (asset) => {
       const type = String(asset?.type || 'upload');
       const publicId = String(asset?.public_id || '');
-      // Use the delivery identifier parsed from secure_url when available.
-      // In some product environments, public_id itself may contain an extension-like suffix
-      // (e.g. "foo.jpg"), and authenticated/private delivery can require a URL tail like
-      // "foo.jpg.jpg". Building from public_id alone then causes signed-preview 404s.
-      // Reusing secure_url's actual delivery tail keeps the signed target and final URL aligned.
+      // Prefer secure_url-derived delivery id to match Cloudinary's own tail representation.
+      const deliveryPublicIdRaw = extractDeliveryPublicIdRawFromSecureUrl(asset?.secure_url);
       const deliveryPublicId = extractDeliveryPublicIdFromSecureUrl(asset?.secure_url);
       const format = String(asset?.format || '').toLowerCase();
       const transform = buildPreviewTransform({
@@ -110,6 +110,17 @@ export async function onRequestGet({ request, env }) {
         version: null,
         signed,
       });
+      if (debugEnabled) {
+        debug.push({
+          public_id: publicId,
+          format,
+          secure_url: asset?.secure_url || '',
+          delivery_public_id_raw: deliveryPublicIdRaw,
+          delivery_public_id_normalized: deliveryPublicId,
+          preview_url,
+          to_sign_guess: `${transform}/${deliveryPublicId || publicId}`,
+        });
+      }
       return {
         asset_id: asset.asset_id,
         public_id: asset.public_id,
@@ -128,6 +139,7 @@ export async function onRequestGet({ request, env }) {
     return jsonResponse({
       resources: mapped,
       next_cursor: data?.next_cursor || null,
+      ...(debugEnabled ? { debug } : {}),
     });
   } catch (error) {
     return respondWithMappedError(error);

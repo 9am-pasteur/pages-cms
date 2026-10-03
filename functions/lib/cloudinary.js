@@ -109,7 +109,7 @@ const encodeCloudinaryPublicIdPath = (publicId) => String(publicId || '')
   .map((segment) => encodeRFC3986URIComponent(segment).replace(/~/g, '%7E'))
   .join('/');
 
-const extractDeliveryPublicIdFromSecureUrl = (secureUrl) => {
+const extractDeliveryPublicIdRawFromSecureUrl = (secureUrl) => {
   const url = String(secureUrl || '');
   if (!url) return '';
   try {
@@ -122,6 +122,9 @@ const extractDeliveryPublicIdFromSecureUrl = (secureUrl) => {
     return '';
   }
 };
+
+const extractDeliveryPublicIdFromSecureUrl = (secureUrl) =>
+  extractDeliveryPublicIdRawFromSecureUrl(secureUrl);
 
 const buildCloudinaryDeliveryPath = ({ type = 'upload', transform, publicId, version = null }) => {
   const v = Number(version);
@@ -170,6 +173,7 @@ export {
   normalizedTransform,
   normalizeCloudinaryType,
   encodeCloudinaryPublicIdPath,
+  extractDeliveryPublicIdRawFromSecureUrl,
   extractDeliveryPublicIdFromSecureUrl,
   buildCloudinaryDeliveryPath,
   buildCloudinarySignatureTarget,
