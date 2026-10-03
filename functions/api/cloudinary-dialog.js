@@ -220,7 +220,7 @@ const renderCustomDialog = ({ request, env }) => {
       } catch (e) {
         const message = e.message || 'Failed to load assets';
         const hint = /forbidden|denied|permission|not allowed|unauthorized|401|403/i.test(message)
-          ? '\nHint: API authorization failed (401/403 or equivalent). Check Cloudinary API key role/permissions.'
+          ? '\\nHint: API authorization failed (401/403 or equivalent). Check Cloudinary API key role/permissions.'
           : '';
         setAssetsStatus(message + hint);
         setStatus(message);
