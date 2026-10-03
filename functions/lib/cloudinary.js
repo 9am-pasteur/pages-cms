@@ -99,10 +99,28 @@ const normalizeCloudinaryType = (type) => {
   return t || 'upload';
 };
 
+const encodeRFC3986URIComponent = (str) => encodeURIComponent(str).replace(
+  /[!'()*]/g,
+  (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+);
+
+const encodeCloudinaryPublicIdPath = (publicId) => String(publicId || '')
+  .split('/')
+  .map((segment) => encodeRFC3986URIComponent(segment).replace(/~/g, '%7E'))
+  .join('/');
+
 const buildCloudinaryDeliveryPath = ({ type = 'upload', transform, publicId, version = null }) => {
   const v = Number(version);
   const versionPart = Number.isFinite(v) && v > 0 ? `/v${Math.trunc(v)}` : '';
-  return `image/${normalizeCloudinaryType(type)}/${transform}${versionPart}/${publicId}`;
+  const encodedPublicId = encodeCloudinaryPublicIdPath(publicId);
+  return `image/${normalizeCloudinaryType(type)}/${transform}${versionPart}/${encodedPublicId}`;
+};
+
+const buildCloudinarySignatureTarget = ({ transform, publicId, version = null }) => {
+  const v = Number(version);
+  const versionPart = Number.isFinite(v) && v > 0 ? `v${Math.trunc(v)}/` : '';
+  const encodedPublicId = encodeCloudinaryPublicIdPath(publicId);
+  return `${transform}/${versionPart}${encodedPublicId}`;
 };
 
 const buildCloudinaryDeliveryUrl = async ({
@@ -114,12 +132,15 @@ const buildCloudinaryDeliveryUrl = async ({
   version = null,
   signed = false,
 }) => {
+  const v = Number(version);
+  const versionPart = Number.isFinite(v) && v > 0 ? `/v${Math.trunc(v)}` : '';
   const path = buildCloudinaryDeliveryPath({ type, transform, publicId, version });
   if (!signed) {
     return `https://res.cloudinary.com/${cloudName}/${path}`;
   }
-  const sig = await buildDeliverySignature(apiSecret, path);
-  return `https://res.cloudinary.com/${cloudName}/image/${normalizeCloudinaryType(type)}/s--${sig}--/${transform}/${publicId}`;
+  const toSign = buildCloudinarySignatureTarget({ transform, publicId, version });
+  const sig = await buildDeliverySignature(apiSecret, toSign);
+  return `https://res.cloudinary.com/${cloudName}/image/${normalizeCloudinaryType(type)}/s--${sig}--/${transform}${versionPart}/${publicId}`;
 };
 
 export {
@@ -130,6 +151,8 @@ export {
   buildDeliverySignature,
   normalizedTransform,
   normalizeCloudinaryType,
+  encodeCloudinaryPublicIdPath,
   buildCloudinaryDeliveryPath,
+  buildCloudinarySignatureTarget,
   buildCloudinaryDeliveryUrl,
 };

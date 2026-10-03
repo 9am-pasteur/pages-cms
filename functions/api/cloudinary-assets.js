@@ -40,6 +40,16 @@ const buildTypeExpression = (types) => {
   return `(${normalized.join(' OR ')})`;
 };
 
+const resolveVersion = (asset) => {
+  const direct = Number(asset?.version);
+  if (Number.isFinite(direct) && direct > 0) return Math.trunc(direct);
+  const secure = String(asset?.secure_url || '');
+  const m = secure.match(/\/v(\d+)\//);
+  if (!m) return null;
+  const parsed = Number(m[1]);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : null;
+};
+
 export async function onRequestGet({ request, env }) {
   try {
     const url = new URL(request.url);
@@ -89,13 +99,14 @@ export async function onRequestGet({ request, env }) {
         extra: transformExtra,
       });
       const signed = previewSignedByDefault || type === 'authenticated' || type === 'private';
+      const version = resolveVersion(asset);
       const preview_url = await buildCloudinaryDeliveryUrl({
         cloudName,
         apiSecret,
         type,
         transform,
         publicId,
-        version: asset?.version,
+        version,
         signed,
       });
       return {
