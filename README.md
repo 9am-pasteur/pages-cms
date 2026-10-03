@@ -22,9 +22,18 @@ Pages CMS (Vue版) では、`rich-text` フィールドに対して 2 種類の�
 - **CKEditor 4 (オプション)**: 既存HTMLをなるべく壊さず編集したい場合に有効。
   - `.pages.yml` のフィールド定義で `options.editor: ckeditor4` を指定。
   - CKEditor 4.22.1 を `public/js/ckeditor/ckeditor.js` として同梱し、必要なプラグイン（例: `plugins/cloudinary`）を配置してください。
-  - Cloudinary メディア挿入は2通り:
-    1. **独自ダイアログをリバースプロキシ**: `CLOUDINARY_DIALOG_URL` を環境変数に指定すると、そのURLを同一オリジンで iframe 表示し、`insertIt()` を呼び出せます。
-    2. **Cloudinary Media Library Widget (MLW)**: 環境変数 `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`（任意で `CLOUDINARY_USERNAME`）を設定すると、公式MLWがCKEditorダイアログ内で開き、既存アセットの検索・選択・アップロードが可能になります。
+  - Cloudinary メディア挿入は `CLOUDINARY_DIALOG_MODE` で選択:
+    1. `custom`（推奨）: 一覧 + upload + テンプレート選択 + insert を1画面で提供
+    2. `mlw`: Cloudinary Media Library Widget
+    3. `proxy`: `CLOUDINARY_DIALOG_URL` をリバースプロキシ
+  - `custom` / `mlw` 共通で `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` が必要です（`mlw` は任意で `CLOUDINARY_USERNAME`）。
+  - `custom` のテンプレート取得は以下を利用:
+    - `CLOUDINARY_TEMPLATE_DIR`（既定: `src/img-template`）
+    - `CLOUDINARY_TEMPLATE_DEFAULT_SRCSET_WIDTHS`（既定: `300,600,900,1500`）
+    - `CLOUDINARY_TEMPLATE_DEFAULT_TRANSFORM`（任意）
+  - strict transformations で配信URL署名が必要な場合:
+    - `CLOUDINARY_DELIVERY_SIGNED=true` を指定すると、`/api/cloudinary-delivery-urls` が署名URLを返します。
+  - 1画面統合の custom ダイアログ計画メモ: [docs/cloudinary-custom-dialog-plan.md](./docs/cloudinary-custom-dialog-plan.md)
 
 設定例（.pages.yml の抜粋）:
 

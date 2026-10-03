@@ -13,7 +13,7 @@ CKEDITOR.plugins.add('cloudinary', {
 
     // ダイアログ定義（iframe で cloudinary_dialog.pl を表示）
     CKEDITOR.dialog.add('cloudinaryDialog', function(editor) {
-      var dialogUrl = '/api/cloudinary-dialog';
+      var dialogUrl = buildDialogUrl();
       return {
         title: 'Cloudinary から画像を選択',
         minWidth: 860,
@@ -70,6 +70,25 @@ CKEDITOR.plugins.add('cloudinary', {
     });
   }
 });
+
+function buildDialogUrl() {
+  var base = '/api/cloudinary-dialog';
+  try {
+    var p = window.location.pathname.split('/').filter(Boolean);
+    var owner = p[0] || '';
+    var repo = p[1] || '';
+    var branch = p[2] || '';
+    var provider = (window.localStorage && window.localStorage.getItem('provider')) || '';
+    var qs = [];
+    if (provider) qs.push('provider=' + encodeURIComponent(provider));
+    if (owner) qs.push('owner=' + encodeURIComponent(owner));
+    if (repo) qs.push('repo=' + encodeURIComponent(repo));
+    if (branch) qs.push('branch=' + encodeURIComponent(branch));
+    return qs.length > 0 ? (base + '?' + qs.join('&')) : base;
+  } catch (e) {
+    return base;
+  }
+}
 
 function adjustSizeToViewport(dialog) {
   var vp = CKEDITOR.document.getWindow().getViewPaneSize();
