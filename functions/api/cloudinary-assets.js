@@ -24,15 +24,40 @@ const uniqueByAssetId = (list) => {
   return out;
 };
 
+const encodeCursor = (payload) => {
+  try {
+    return `v1.${btoa(JSON.stringify(payload))}`;
+  } catch {
+    return null;
+  }
+};
+
+const decodeCursor = (value) => {
+  const raw = String(value || '');
+  if (!raw.startsWith('v1.')) return null;
+  try {
+    const json = atob(raw.slice(3));
+    const data = JSON.parse(json);
+    if (!data || typeof data !== 'object') return null;
+    return data;
+  } catch {
+    return null;
+  }
+};
+
 export async function onRequestGet({ request, env }) {
   try {
     const url = new URL(request.url);
     const maxResults = toNumberInRange(url.searchParams.get('max_results'), 30, 1, 100);
-    const nextCursor = url.searchParams.get('next_cursor') || '';
+    const inputCursor = url.searchParams.get('next_cursor') || '';
+    const decodedCursor = decodeCursor(inputCursor);
     const q = (url.searchParams.get('q') || '').trim();
     const explicitTypes = parseTypes(url.searchParams.get('types'));
     const fallbackTypes = parseTypes(env.CLOUDINARY_ASSET_TYPES || 'upload,private,authenticated');
-    const types = explicitTypes.length > 0 ? explicitTypes : fallbackTypes;
+    const types = explicitTypes.length > 0
+      ? explicitTypes
+      : (decodedCursor?.type ? [decodedCursor.type] : fallbackTypes);
+    const nextCursor = decodedCursor?.cursor || inputCursor;
 
     const data = q
       ? await cloudinaryApiRequest(env, '/resources/search', {
@@ -48,7 +73,7 @@ export async function onRequestGet({ request, env }) {
       : await (async () => {
         const merged = [];
         let next = null;
-        const tried = [];
+        let selectedType = '';
         for (const type of types) {
           // next_cursor は type ごとに独立するので、通常は type 固定で使う想定。
           // 明示指定時のみ next_cursor を適用する。
@@ -57,18 +82,21 @@ export async function onRequestGet({ request, env }) {
             method: 'GET',
             query: {
               max_results: maxResults,
-              ...(explicitTypes.length > 0 && nextCursor ? { next_cursor: nextCursor } : {}),
+              ...(nextCursor ? { next_cursor: nextCursor } : {}),
             },
           });
-          tried.push(type);
           if (Array.isArray(part?.resources) && part.resources.length > 0) {
             merged.push(...part.resources);
+            selectedType = type;
             next = part?.next_cursor || null;
             // type を跨いだページングは扱いづらいため、最初にヒットした type を優先して返す。
             break;
           }
         }
-        return { resources: uniqueByAssetId(merged), next_cursor: next, _triedTypes: tried };
+        return {
+          resources: uniqueByAssetId(merged),
+          next_cursor: (next && selectedType) ? encodeCursor({ type: selectedType, cursor: next }) : null,
+        };
       })();
 
     const resources = Array.isArray(data?.resources) ? data.resources : [];
@@ -85,7 +113,6 @@ export async function onRequestGet({ request, env }) {
         context: asset.context || null,
       })),
       next_cursor: data?.next_cursor || null,
-      source_types: data?._triedTypes || (q ? ['search'] : types),
     });
   } catch (error) {
     return respondWithMappedError(error);
