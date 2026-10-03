@@ -98,6 +98,7 @@ const renderCustomDialog = ({ request, env }) => {
     .toolbar button { padding:8px 10px; border:1px solid #ccc; border-radius:8px; background:#fff; cursor:pointer; }
     .body { display:grid; grid-template-columns: 2fr 1fr; min-height:0; }
     .assets { overflow:auto; padding:10px; border-right:1px solid #ddd; }
+    .assets-status { margin-bottom:8px; font-size:12px; color:#b91c1c; white-space:pre-wrap; }
     .asset-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
     .asset { border:1px solid #ddd; border-radius:8px; overflow:hidden; cursor:pointer; background:#fff; }
     .asset.selected { outline: 2px solid #2563eb; }
@@ -125,6 +126,7 @@ const renderCustomDialog = ({ request, env }) => {
     </div>
     <div class="body">
       <div class="assets">
+        <div id="assetsStatus" class="assets-status"></div>
         <div id="assetGrid" class="asset-grid"></div>
         <div style="margin-top:10px"><button id="moreBtn" type="button">Load more</button></div>
       </div>
@@ -173,6 +175,7 @@ const renderCustomDialog = ({ request, env }) => {
       uploadBtn: document.getElementById('uploadBtn'),
       uploadInput: document.getElementById('uploadInput'),
       assetGrid: document.getElementById('assetGrid'),
+      assetsStatus: document.getElementById('assetsStatus'),
       moreBtn: document.getElementById('moreBtn'),
       templateSel: document.getElementById('templateSel'),
       templateInfo: document.getElementById('templateInfo'),
@@ -184,6 +187,7 @@ const renderCustomDialog = ({ request, env }) => {
     };
 
     const setStatus = (msg) => { els.status.textContent = msg || ''; };
+    const setAssetsStatus = (msg) => { els.assetsStatus.textContent = msg || ''; };
     const parseWidths = (value) => String(value || '').split(',').map(v => Number(v.trim())).filter(v => Number.isFinite(v) && v > 0);
     const escapeHtml = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
     const readLocalToken = () => localStorage.getItem('token') || '';
@@ -192,6 +196,7 @@ const renderCustomDialog = ({ request, env }) => {
       if (state.loadingAssets) return;
       state.loadingAssets = true;
       try {
+        setAssetsStatus('');
         if (reset) {
           state.nextCursor = null;
           state.assets = [];
@@ -207,8 +212,18 @@ const renderCustomDialog = ({ request, env }) => {
         state.assets = state.assets.concat(Array.isArray(data.resources) ? data.resources : []);
         state.nextCursor = data.next_cursor || null;
         renderAssets();
+        if (state.assets.length === 0) {
+          setAssetsStatus('No assets found. Cloudinary asset list may be empty, or this API key may not have sufficient permissions.');
+        } else {
+          setAssetsStatus('');
+        }
       } catch (e) {
-        setStatus(e.message || 'Failed to load assets');
+        const message = e.message || 'Failed to load assets';
+        const hint = /forbidden|denied|permission|not allowed|unauthorized|401|403/i.test(message)
+          ? '\nHint: API authorization failed (401/403 or equivalent). Check Cloudinary API key role/permissions.'
+          : '';
+        setAssetsStatus(message + hint);
+        setStatus(message);
       } finally {
         state.loadingAssets = false;
         els.moreBtn.disabled = !state.nextCursor;

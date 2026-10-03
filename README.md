@@ -27,6 +27,9 @@ Pages CMS (Vue版) では、`rich-text` フィールドに対して 2 種類の�
     2. `mlw`: Cloudinary Media Library Widget
     3. `proxy`: `CLOUDINARY_DIALOG_URL` をリバースプロキシ
   - `custom` / `mlw` 共通で `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` が必要です（`mlw` は任意で `CLOUDINARY_USERNAME`）。
+  - Cloudinary 側のロールにより API 実行可否が変わります。`custom` モードでは一覧取得（Admin API）とアップロード（Upload API）を使うため、権限不足のキーだと assets が空表示になったり upload が失敗します。
+    - 少なくとも Admin API / Upload API を許可したキーを使ってください。
+    - Free / self-serve paid プランではカスタムロールを使えないため、運用によっては Master Admin キーが必要になります。
   - `custom` のテンプレート取得は以下を利用:
     - `CLOUDINARY_TEMPLATE_DIR`（既定: `src/img-template`）
     - `CLOUDINARY_TEMPLATE_DEFAULT_SRCSET_WIDTHS`（既定: `300,600,900,1500`）
