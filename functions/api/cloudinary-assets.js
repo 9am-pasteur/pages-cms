@@ -112,6 +112,7 @@ export async function onRequestGet({ request, env }) {
       });
       if (debugEnabled) {
         debug.push({
+          asset_id: asset?.asset_id || '',
           public_id: publicId,
           format,
           secure_url: asset?.secure_url || '',
