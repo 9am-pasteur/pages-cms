@@ -95,6 +95,7 @@ export async function onRequestGet({ request, env }) {
         type,
         transform,
         publicId,
+        version: asset?.version,
         signed,
       });
       return {

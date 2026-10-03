@@ -99,8 +99,11 @@ const normalizeCloudinaryType = (type) => {
   return t || 'upload';
 };
 
-const buildCloudinaryDeliveryPath = ({ type = 'upload', transform, publicId }) =>
-  `image/${normalizeCloudinaryType(type)}/${transform}/${publicId}`;
+const buildCloudinaryDeliveryPath = ({ type = 'upload', transform, publicId, version = null }) => {
+  const v = Number(version);
+  const versionPart = Number.isFinite(v) && v > 0 ? `/v${Math.trunc(v)}` : '';
+  return `image/${normalizeCloudinaryType(type)}/${transform}${versionPart}/${publicId}`;
+};
 
 const buildCloudinaryDeliveryUrl = async ({
   cloudName,
@@ -108,9 +111,10 @@ const buildCloudinaryDeliveryUrl = async ({
   type = 'upload',
   transform,
   publicId,
+  version = null,
   signed = false,
 }) => {
-  const path = buildCloudinaryDeliveryPath({ type, transform, publicId });
+  const path = buildCloudinaryDeliveryPath({ type, transform, publicId, version });
   if (!signed) {
     return `https://res.cloudinary.com/${cloudName}/${path}`;
   }
