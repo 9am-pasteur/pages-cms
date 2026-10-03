@@ -14,19 +14,25 @@ export async function onRequestGet({ request, env }) {
     const nextCursor = url.searchParams.get('next_cursor') || '';
     const q = (url.searchParams.get('q') || '').trim();
 
-    const expression = q
-      ? `resource_type:image AND (${q})`
-      : 'resource_type:image';
-
-    const data = await cloudinaryApiRequest(env, '/resources/search', {
-      method: 'POST',
-      json: {
-        expression,
-        sort_by: [{ created_at: 'desc' }],
-        max_results: maxResults,
-        ...(nextCursor ? { next_cursor: nextCursor } : {}),
-      },
-    });
+    const data = q
+      ? await cloudinaryApiRequest(env, '/resources/search', {
+        method: 'POST',
+        json: {
+          // Free-text search on public_id/context/tags.
+          expression: `resource_type:image AND (${q})`,
+          sort_by: [{ created_at: 'desc' }],
+          max_results: maxResults,
+          ...(nextCursor ? { next_cursor: nextCursor } : {}),
+        },
+      })
+      : await cloudinaryApiRequest(env, '/resources/image', {
+        method: 'GET',
+        query: {
+          type: 'upload',
+          max_results: maxResults,
+          ...(nextCursor ? { next_cursor: nextCursor } : {}),
+        },
+      });
 
     const resources = Array.isArray(data?.resources) ? data.resources : [];
     return jsonResponse({
