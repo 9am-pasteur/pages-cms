@@ -109,6 +109,20 @@ const encodeCloudinaryPublicIdPath = (publicId) => String(publicId || '')
   .map((segment) => encodeRFC3986URIComponent(segment).replace(/~/g, '%7E'))
   .join('/');
 
+const extractDeliveryPublicIdFromSecureUrl = (secureUrl) => {
+  const url = String(secureUrl || '');
+  if (!url) return '';
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname || '';
+    // /<cloud>/<resource_type>/<type>/.../(v123/)?<delivery_public_id>
+    const m = path.match(/\/(?:image|video|raw)\/[^/]+\/(?:.+?\/)?(?:v\d+\/)?(.+)$/);
+    return m?.[1] || '';
+  } catch {
+    return '';
+  }
+};
+
 const buildCloudinaryDeliveryPath = ({ type = 'upload', transform, publicId, version = null }) => {
   const v = Number(version);
   const versionPart = Number.isFinite(v) && v > 0 ? `/v${Math.trunc(v)}` : '';
@@ -129,14 +143,20 @@ const buildCloudinaryDeliveryUrl = async ({
   type = 'upload',
   transform,
   publicId,
+  deliveryPublicId = '',
   version = null,
   signed = false,
 }) => {
-  const path = buildCloudinaryDeliveryPath({ type, transform, publicId, version });
+  const normalizedDeliveryPublicId = String(deliveryPublicId || '').trim();
+  const path = normalizedDeliveryPublicId
+    ? `image/${normalizeCloudinaryType(type)}/${transform}/${normalizedDeliveryPublicId}`
+    : buildCloudinaryDeliveryPath({ type, transform, publicId, version });
   if (!signed) {
     return `https://res.cloudinary.com/${cloudName}/${path}`;
   }
-  const toSign = buildCloudinarySignatureTarget({ transform, publicId, version });
+  const toSign = normalizedDeliveryPublicId
+    ? `${transform}/${normalizedDeliveryPublicId}`
+    : buildCloudinarySignatureTarget({ transform, publicId, version });
   const sig = await buildDeliverySignature(apiSecret, toSign);
   return `https://res.cloudinary.com/${cloudName}/image/${normalizeCloudinaryType(type)}/s--${sig}--/${toSign}`;
 };
@@ -150,6 +170,7 @@ export {
   normalizedTransform,
   normalizeCloudinaryType,
   encodeCloudinaryPublicIdPath,
+  extractDeliveryPublicIdFromSecureUrl,
   buildCloudinaryDeliveryPath,
   buildCloudinarySignatureTarget,
   buildCloudinaryDeliveryUrl,

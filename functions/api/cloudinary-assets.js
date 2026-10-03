@@ -3,7 +3,7 @@ import {
   cloudinaryApiRequest,
   requireCloudinaryEnv,
   buildCloudinaryDeliveryUrl,
-  normalizedTransform,
+  extractDeliveryPublicIdFromSecureUrl,
 } from '../lib/cloudinary';
 
 const toNumberInRange = (value, fallback, min, max) => {
@@ -40,14 +40,13 @@ const buildTypeExpression = (types) => {
   return `(${normalized.join(' OR ')})`;
 };
 
-const resolveVersion = (asset) => {
-  const direct = Number(asset?.version);
-  if (Number.isFinite(direct) && direct > 0) return Math.trunc(direct);
-  const secure = String(asset?.secure_url || '');
-  const m = secure.match(/\/v(\d+)\//);
-  if (!m) return null;
-  const parsed = Number(m[1]);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : null;
+const buildPreviewTransform = ({ width, height, crop, format }) => {
+  const base = `c_${crop},h_${height},w_${width}`;
+  const withPage = String(format || '').toLowerCase() === 'pdf'
+    ? `${base},pg_1`
+    : base;
+  // Cloudinary console style: base transform / f_auto / q_auto
+  return `${withPage}/f_auto/q_auto`;
 };
 
 export async function onRequestGet({ request, env }) {
@@ -87,26 +86,28 @@ export async function onRequestGet({ request, env }) {
     const mapped = await Promise.all(uniqueByAssetId(resources).map(async (asset) => {
       const type = String(asset?.type || 'upload');
       const publicId = String(asset?.public_id || '');
+      // Use the delivery identifier parsed from secure_url when available.
+      // In some product environments, public_id itself may contain an extension-like suffix
+      // (e.g. "foo.jpg"), and authenticated/private delivery can require a URL tail like
+      // "foo.jpg.jpg". Building from public_id alone then causes signed-preview 404s.
+      // Reusing secure_url's actual delivery tail keeps the signed target and final URL aligned.
+      const deliveryPublicId = extractDeliveryPublicIdFromSecureUrl(asset?.secure_url);
       const format = String(asset?.format || '').toLowerCase();
-      const isPdf = format === 'pdf';
-      const transformExtra = isPdf
-        ? `pg_1,c_${previewFit},h_${previewHeight}`
-        : `c_${previewFit},h_${previewHeight}`;
-      const transform = normalizedTransform({
+      const transform = buildPreviewTransform({
         width: previewWidth,
-        format: 'auto',
-        quality: 'auto',
-        extra: transformExtra,
+        height: previewHeight,
+        crop: previewFit,
+        format,
       });
       const signed = previewSignedByDefault || type === 'authenticated' || type === 'private';
-      const version = resolveVersion(asset);
       const preview_url = await buildCloudinaryDeliveryUrl({
         cloudName,
         apiSecret,
         type,
         transform,
         publicId,
-        version,
+        deliveryPublicId,
+        version: null,
         signed,
       });
       return {
