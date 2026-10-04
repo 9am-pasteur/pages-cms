@@ -17,6 +17,10 @@ const parseTypes = (value) => String(value || '')
   .map((v) => v.trim())
   .filter(Boolean);
 
+const sanitizeFolder = (value) => String(value || '')
+  .trim()
+  .replace(/^\/+|\/+$/g, '');
+
 const uniqueByAssetId = (list) => {
   const seen = new Set();
   const out = [];
@@ -56,12 +60,14 @@ export async function onRequestGet({ request, env }) {
     const nextCursor = url.searchParams.get('next_cursor') || '';
     const q = (url.searchParams.get('q') || '').trim();
     const explicitTypes = parseTypes(url.searchParams.get('types'));
-    const fallbackTypes = parseTypes(env.CLOUDINARY_ASSET_TYPES || 'upload,private,authenticated');
+    const fallbackTypes = parseTypes(env.CLOUDINARY_ASSET_TYPES || 'upload');
     const types = explicitTypes.length > 0 ? explicitTypes : fallbackTypes;
+    const folder = sanitizeFolder(url.searchParams.get('folder') || env.CLOUDINARY_ASSET_FOLDER || '');
     const typeExpr = buildTypeExpression(types);
     const extraExpr = q ? `(${q})` : '';
     const expressionParts = ['resource_type=image'];
     if (typeExpr) expressionParts.push(typeExpr);
+    if (folder) expressionParts.push(`public_id=${folder}/*`);
     if (extraExpr) expressionParts.push(extraExpr);
     const expression = expressionParts.join(' AND ');
 
@@ -95,7 +101,7 @@ export async function onRequestGet({ request, env }) {
         crop: previewFit,
         format,
       });
-      const signed = previewSignedByDefault || type === 'authenticated' || type === 'private';
+      const signed = previewSignedByDefault;
       const preview_url = await buildCloudinaryDeliveryUrl({
         cloudName,
         apiSecret,
@@ -110,6 +116,7 @@ export async function onRequestGet({ request, env }) {
         asset_id: asset.asset_id,
         public_id: asset.public_id,
         secure_url: asset.secure_url,
+        original_url: asset.secure_url,
         preview_url,
         width: asset.width,
         height: asset.height,

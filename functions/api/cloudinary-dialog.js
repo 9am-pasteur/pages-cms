@@ -309,6 +309,7 @@ const renderCustomDialog = ({ request, env }) => {
       return c?.custom?.alt || c?.alt || asset?.public_id || '';
     };
 
+    const getOriginalUrl = (asset) => asset?.original_url || asset?.secure_url || '';
     const buildDefaultHtml = (asset) => '<img src="' + asset.secure_url + '" alt="' + escapeHtml(getAssetAlt(asset)) + '" />';
 
     const buildTemplateHtml = async (asset, template) => {
@@ -316,6 +317,7 @@ const renderCustomDialog = ({ request, env }) => {
       const widths = parseWidths(template.srcsetWidths || cfg.defaultSrcsetWidths);
       let src = asset.secure_url;
       let srcset = '';
+      const originalUrl = getOriginalUrl(asset);
       if (widths.length > 0) {
         const res = await fetch('/api/cloudinary-delivery-urls', {
           method: 'POST',
@@ -338,7 +340,9 @@ const renderCustomDialog = ({ request, env }) => {
         .replaceAll('\${src}', src)
         .replaceAll('\${srcset}', srcset)
         .replaceAll('\${alt}', getAssetAlt(asset))
-        .replaceAll('\${public_id}', asset.public_id || '');
+        .replaceAll('\${public_id}', asset.public_id || '')
+        .replaceAll('\${original_url}', originalUrl)
+        .replaceAll('\${href}', originalUrl);
     };
 
     const renderPreview = async () => {

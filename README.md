@@ -38,9 +38,14 @@ Pages CMS (Vue版) では、`rich-text` フィールドに対して 2 種類の�
     - `CLOUDINARY_PREVIEW_WIDTH`（既定: `240`）
     - `CLOUDINARY_PREVIEW_HEIGHT`（既定: `140`）
     - `CLOUDINARY_PREVIEW_CROP`（既定: `fill`）
-    - `authenticated/private` は署名URLで返します（または `CLOUDINARY_DELIVERY_SIGNED=true` で常に署名）。
+    - `CLOUDINARY_ASSET_TYPES`（既定: `upload`）
+    - `CLOUDINARY_ASSET_FOLDER`（任意）: 指定すると `public_id=<folder>/*` 配下のみに絞り込み
+    - `CLOUDINARY_DELIVERY_SIGNED=true` の場合のみ、`preview_url` を署名URLとして返します（strict transformations 向け）。
   - strict transformations で配信URL署名が必要な場合:
     - `CLOUDINARY_DELIVERY_SIGNED=true` を指定すると、`/api/cloudinary-delivery-urls` が署名URLを返します。
+  - custom テンプレートで使える主な差し込み変数:
+    - `${src}` / `${srcset}` / `${alt}` / `${public_id}`
+    - `${original_url}`（原本URL。PDFサムネイルを `<a href="${original_url}">` で囲む用途）
   - 1画面統合の custom ダイアログ計画メモ: [docs/cloudinary-custom-dialog-plan.md](./docs/cloudinary-custom-dialog-plan.md)
 
 設定例（.pages.yml の抜粋）:
