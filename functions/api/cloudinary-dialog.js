@@ -112,19 +112,18 @@ const renderCustomDialog = ({ request, env }) => {
       position:absolute;
       top:6px;
       right:6px;
-      width:24px;
-      height:24px;
+      width:26px;
+      height:26px;
       border:1px solid #ef4444;
       border-radius:999px;
       background:#fff;
       color:#ef4444;
-      font-size:14px;
-      line-height:1;
       display:none;
       align-items:center;
       justify-content:center;
       cursor:pointer;
     }
+    .asset .delete-btn svg { width:17px; height:17px; display:block; }
     .asset:hover .delete-btn, .asset.selected .delete-btn { display:flex; }
     .asset .delete-btn:hover { background:#fef2f2; }
     .side { overflow:auto; padding:10px; }
@@ -303,7 +302,7 @@ const renderCustomDialog = ({ request, env }) => {
         card.className = 'asset' + (state.selectedAsset && state.selectedAsset.asset_id === asset.asset_id ? ' selected' : '');
         var thumb = asset.preview_url || asset.secure_url;
         card.innerHTML = '<img src="' + escapeHtml(thumb) + '" alt="" />' +
-          (cfg.allowDelete ? '<button type="button" class="delete-btn" title="Delete image" aria-label="Delete image">🗑</button>' : '') +
+          (cfg.allowDelete ? '<button type="button" class="delete-btn" title="Delete image" aria-label="Delete image"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 9.5h1.8v8H8zm6.2 0H16v8h-1.8zM9 6h6l.8 1.2H19V9H5V7.2h3.2zM7.4 9h9.2l-.7 10.2c-.1 1-1 1.8-2 1.8h-3.8c-1 0-1.9-.8-2-1.8z" fill="currentColor"/></svg></button>' : '') +
           '<div class="meta">' + escapeHtml(asset.public_id) + '</div>';
         const selectCard = () => {
           state.selectedAsset = asset;
