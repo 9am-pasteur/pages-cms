@@ -423,7 +423,7 @@ const renderCustomDialog = ({ request, env }) => {
 
     const getAssetAlt = (asset) => {
       const c = asset && asset.context ? asset.context : null;
-      return c?.custom?.alt || c?.alt || asset?.public_id || '';
+      return c?.custom?.alt || c?.alt || displayPublicId(asset?.public_id || '') || '';
     };
 
     const getOriginalUrl = (asset) => asset?.original_url || asset?.secure_url || '';
@@ -457,7 +457,7 @@ const renderCustomDialog = ({ request, env }) => {
         .replaceAll('\${src}', src)
         .replaceAll('\${srcset}', srcset)
         .replaceAll('\${alt}', getAssetAlt(asset))
-        .replaceAll('\${public_id}', asset.public_id || '')
+        .replaceAll('\${public_id}', displayPublicId(asset.public_id || ''))
         .replaceAll('\${original_url}', originalUrl)
         .replaceAll('\${href}', originalUrl);
     };
