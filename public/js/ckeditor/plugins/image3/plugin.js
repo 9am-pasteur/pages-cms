@@ -5,6 +5,23 @@
  * - Hides "center" option from image2 dialog.
  */
 (function() {
+  function isDebugEnabled(editor) {
+    try {
+      return !!(editor && editor.config && editor.config.image3Debug) || !!(window && window.__IMAGE3_DEBUG__);
+    } catch (e) {
+      return !!(editor && editor.config && editor.config.image3Debug);
+    }
+  }
+
+  function debug(editor, msg, data) {
+    if (!isDebugEnabled(editor)) return;
+    if (data !== undefined) {
+      console.log('[image3]', msg, data);
+    } else {
+      console.log('[image3]', msg);
+    }
+  }
+
   function getFocusedImageWidget(editor) {
     var w = editor.widgets && editor.widgets.focused;
     return (w && w.name === 'image') ? w : null;
@@ -63,6 +80,11 @@
       var targetAlign = dir === 'block' ? 'justify' : dir;
 
       cmd.exec = function(ed) {
+        debug(ed || editor, 'justify exec intercepted', {
+          dir: dir,
+          wrapped: !!cmd._image3Wrapped,
+          widgetFocused: !!getFocusedImageWidget(ed || editor)
+        });
         var widget = getFocusedImageWidget(ed || editor);
         if (!widget) {
           return originalExec ? originalExec.apply(this, arguments) : undefined;
@@ -90,6 +112,7 @@
       };
 
       cmd._image3Wrapped = true;
+      debug(editor, 'justify command wrapped', { dir: dir, command: 'justify' + dir });
     });
   }
 
@@ -176,10 +199,21 @@
       }
 
       editor.on('instanceReady', function() {
+        debug(editor, 'instanceReady');
         wrapJustifyCommands(editor);
       });
       bindImageFloatRefresh(editor);
       removeCenterFromImage2Dialog();
+      editor.on('afterCommandExec', function(evt) {
+        var name = evt && evt.data ? evt.data.name : '';
+        if (name && name.indexOf('justify') === 0) {
+          debug(editor, 'afterCommandExec', {
+            name: name,
+            widgetFocused: !!getFocusedImageWidget(editor),
+            align: getFocusedImageWidget(editor) ? getFocusedImageWidget(editor).data.align : null
+          });
+        }
+      });
 
       var extras = String(editor.config.extraPlugins || '');
       if (extras.indexOf('image2') >= 0 && extras.indexOf('image3') >= 0) {
