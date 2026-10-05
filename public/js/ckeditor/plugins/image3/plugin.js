@@ -23,8 +23,41 @@
   }
 
   function getFocusedImageWidget(editor) {
-    var w = editor.widgets && editor.widgets.focused;
-    return (w && w.name === 'image') ? w : null;
+    if (!editor || !editor.widgets) return null;
+
+    // 1) Preferred: selected widgets.
+    var selected = editor.widgets.selected;
+    if (selected && selected.length) {
+      for (var i = 0; i < selected.length; i += 1) {
+        if (selected[i] && selected[i].name === 'image') return selected[i];
+      }
+    }
+
+    // 2) Fallback: currently focused widget.
+    var focused = editor.widgets.focused;
+    if (focused && focused.name === 'image') return focused;
+
+    // 3) Fallback: resolve from selected DOM element.
+    var sel = editor.getSelection && editor.getSelection();
+    if (sel) {
+      var el = sel.getSelectedElement ? sel.getSelectedElement() : null;
+      if (!el && sel.getStartElement) el = sel.getStartElement();
+      if (el && editor.widgets.getByElement) {
+        var direct = editor.widgets.getByElement(el);
+        if (direct && direct.name === 'image') return direct;
+      }
+      if (el && el.getAscendant) {
+        var wrapper = el.getAscendant(function(node) {
+          return !!(node && node.type === CKEDITOR.NODE_ELEMENT && node.hasAttribute && node.hasAttribute('data-cke-widget-id'));
+        }, true);
+        if (wrapper && editor.widgets.getByElement) {
+          var fromWrapper = editor.widgets.getByElement(wrapper);
+          if (fromWrapper && fromWrapper.name === 'image') return fromWrapper;
+        }
+      }
+    }
+
+    return null;
   }
 
   function getClosestBlock(el) {
