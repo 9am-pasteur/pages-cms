@@ -19,7 +19,7 @@
   }
 
   function addImageFloatCommand(editor, name, align) {
-    editor.addCommand(name, {
+    editor.addCommand(name, new CKEDITOR.command(editor, {
       exec: function(ed) {
         var widget = getFocusedImageWidget(ed);
         if (!widget) return;
@@ -33,38 +33,70 @@
         }
         this.setState(widget.data.align === align ? CKEDITOR.TRISTATE_ON : CKEDITOR.TRISTATE_OFF);
       }
+    }));
+  }
+
+  function stripImage2JustifyHooks(editor) {
+    ['left', 'center', 'right', 'block'].forEach(function(dir) {
+      var cmd = editor.getCommand('justify' + dir);
+      if (!cmd || !cmd._ || !cmd._.events) return;
+      ['exec', 'refresh'].forEach(function(eventName) {
+        var evt = cmd._.events[eventName];
+        if (!evt || !Array.isArray(evt.listeners)) return;
+        evt.listeners.slice().forEach(function(listenerObj) {
+          var fn = listenerObj && listenerObj.fn ? listenerObj.fn : listenerObj;
+          var src = '';
+          try { src = String(fn); } catch (e) {}
+          var isImage2Hook =
+            src.indexOf('setData("align"') >= 0 ||
+            src.indexOf("setData('align'") >= 0 ||
+            src.indexOf('widgets.registered.image.features.align') >= 0;
+          if (isImage2Hook) {
+            cmd.removeListener(eventName, fn);
+          }
+        });
+      });
     });
+  }
+
+  function applyBlockAlign(block, dir) {
+    if (!block) return;
+    block.removeAttribute('align');
+    if (dir === 'left') {
+      block.removeStyle('text-align');
+    } else if (dir === 'center' || dir === 'right' || dir === 'justify') {
+      block.setStyle('text-align', dir);
+    }
   }
 
   function patchJustifyForParagraph(editor) {
     ['left', 'center', 'right'].forEach(function(dir) {
       var cmd = editor.getCommand('justify' + dir);
       if (!cmd) return;
-
-      // Run before image2's command integrator.
-      cmd.on('exec', function() {
+      cmd.on('exec', function(evt) {
         var widget = getFocusedImageWidget(editor);
         if (!widget) return;
-
         var block = getClosestBlock(widget.wrapper);
         if (!block) return;
-
-        var sel = editor.getSelection();
-        var range = editor.createRange();
-        range.selectNodeContents(block);
-
-        var focused = editor.widgets.focused;
-        editor.widgets.focused = null;
-        sel.selectRanges([range]);
-
-        CKEDITOR.tools.setTimeout(function() {
-          // Do not force re-focus widget; keep paragraph selection result.
-          if (editor.widgets && editor.widgets.focused === null) {
-            editor.widgets.focused = focused || null;
-          }
-        }, 0);
-      }, null, null, 999);
+        applyBlockAlign(block, dir);
+        editor.fire('saveSnapshot');
+        evt.cancel();
+      }, null, null, 9999);
     });
+  }
+
+  function bindImageFloatRefresh(editor) {
+    function refreshAll() {
+      ['image3FloatLeft', 'image3FloatNone', 'image3FloatRight'].forEach(function(name) {
+        var cmd = editor.getCommand(name);
+        if (cmd && typeof cmd.refresh === 'function') {
+          cmd.refresh(editor);
+        }
+      });
+    }
+    editor.on('instanceReady', refreshAll);
+    editor.on('selectionChange', refreshAll);
+    editor.on('afterCommandExec', refreshAll);
   }
 
   function removeCenterFromImage2Dialog() {
@@ -118,24 +150,26 @@
         editor.ui.addButton('Image3FloatLeft', {
           label: '画像: 左回り込み',
           command: 'image3FloatLeft',
-          toolbar: 'align,15',
+          toolbar: 'align,50',
           icon: this.path + 'icons/imagefloatleft.svg'
         });
         editor.ui.addButton('Image3FloatNone', {
           label: '画像: 回り込みなし',
           command: 'image3FloatNone',
-          toolbar: 'align,16',
+          toolbar: 'align,60',
           icon: this.path + 'icons/imagefloatnone.svg'
         });
         editor.ui.addButton('Image3FloatRight', {
           label: '画像: 右回り込み',
           command: 'image3FloatRight',
-          toolbar: 'align,17',
+          toolbar: 'align,70',
           icon: this.path + 'icons/imagefloatright.svg'
         });
       }
 
+      stripImage2JustifyHooks(editor);
       patchJustifyForParagraph(editor);
+      bindImageFloatRefresh(editor);
       removeCenterFromImage2Dialog();
 
       var extras = String(editor.config.extraPlugins || '');
