@@ -36,29 +36,6 @@
     }));
   }
 
-  function stripImage2JustifyHooks(editor) {
-    ['left', 'center', 'right', 'block'].forEach(function(dir) {
-      var cmd = editor.getCommand('justify' + dir);
-      if (!cmd || !cmd._ || !cmd._.events) return;
-      ['exec', 'refresh'].forEach(function(eventName) {
-        var evt = cmd._.events[eventName];
-        if (!evt || !Array.isArray(evt.listeners)) return;
-        evt.listeners.slice().forEach(function(listenerObj) {
-          var fn = listenerObj && listenerObj.fn ? listenerObj.fn : listenerObj;
-          var src = '';
-          try { src = String(fn); } catch (e) {}
-          var isImage2Hook =
-            src.indexOf('setData("align"') >= 0 ||
-            src.indexOf("setData('align'") >= 0 ||
-            src.indexOf('widgets.registered.image.features.align') >= 0;
-          if (isImage2Hook) {
-            cmd.removeListener(eventName, fn);
-          }
-        });
-      });
-    });
-  }
-
   function applyBlockAlign(block, dir) {
     if (!block) return;
     block.removeAttribute('align');
@@ -69,19 +46,50 @@
     }
   }
 
-  function patchJustifyForParagraph(editor) {
-    ['left', 'center', 'right'].forEach(function(dir) {
+  function getBlockAlign(block) {
+    if (!block) return '';
+    var align = String(block.getStyle('text-align') || block.getAttribute('align') || '').toLowerCase();
+    if (align === 'start' || align === 'auto') return 'left';
+    return align;
+  }
+
+  function wrapJustifyCommands(editor) {
+    ['left', 'center', 'right', 'block'].forEach(function(dir) {
       var cmd = editor.getCommand('justify' + dir);
       if (!cmd) return;
-      cmd.on('exec', function(evt) {
-        var widget = getFocusedImageWidget(editor);
-        if (!widget) return;
+      if (cmd._image3Wrapped) return;
+      var originalExec = cmd.exec;
+      var originalRefresh = cmd.refresh;
+      var targetAlign = dir === 'block' ? 'justify' : dir;
+
+      cmd.exec = function(ed) {
+        var widget = getFocusedImageWidget(ed || editor);
+        if (!widget) {
+          return originalExec ? originalExec.apply(this, arguments) : undefined;
+        }
         var block = getClosestBlock(widget.wrapper);
-        if (!block) return;
-        applyBlockAlign(block, dir);
-        editor.fire('saveSnapshot');
-        evt.cancel();
-      }, null, null, 9999);
+        if (!block) return true;
+        applyBlockAlign(block, targetAlign);
+        (ed || editor).fire('saveSnapshot');
+        return true;
+      };
+
+      cmd.refresh = function(ed) {
+        var widget = getFocusedImageWidget(ed || editor);
+        if (!widget) {
+          return originalRefresh ? originalRefresh.apply(this, arguments) : undefined;
+        }
+        var block = getClosestBlock(widget.wrapper);
+        if (!block) {
+          this.setState(CKEDITOR.TRISTATE_DISABLED);
+          return;
+        }
+        var align = getBlockAlign(block);
+        var isOn = targetAlign === 'left' ? (!align || align === 'left') : align === targetAlign;
+        this.setState(isOn ? CKEDITOR.TRISTATE_ON : CKEDITOR.TRISTATE_OFF);
+      };
+
+      cmd._image3Wrapped = true;
     });
   }
 
@@ -167,8 +175,9 @@
         });
       }
 
-      stripImage2JustifyHooks(editor);
-      patchJustifyForParagraph(editor);
+      editor.on('instanceReady', function() {
+        wrapJustifyCommands(editor);
+      });
       bindImageFloatRefresh(editor);
       removeCenterFromImage2Dialog();
 
