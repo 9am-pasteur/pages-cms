@@ -52,12 +52,37 @@
         }, true);
         if (wrapper && editor.widgets.getByElement) {
           var fromWrapper = editor.widgets.getByElement(wrapper);
-          if (fromWrapper && fromWrapper.name === 'image') return fromWrapper;
+        if (fromWrapper && fromWrapper.name === 'image') return fromWrapper;
         }
       }
     }
 
+    // 4) Last known selected image widget (survives toolbar focus hop).
+    var last = editor._image3LastImageWidget;
+    if (last && last.name === 'image' && last.wrapper && editor.editable && editor.editable().contains(last.wrapper)) {
+      return last;
+    }
+
     return null;
+  }
+
+  function updateLastImageWidget(editor) {
+    var w = null;
+    if (editor && editor.widgets) {
+      var selected = editor.widgets.selected;
+      if (selected && selected.length) {
+        for (var i = 0; i < selected.length; i += 1) {
+          if (selected[i] && selected[i].name === 'image') {
+            w = selected[i];
+            break;
+          }
+        }
+      }
+      if (!w && editor.widgets.focused && editor.widgets.focused.name === 'image') {
+        w = editor.widgets.focused;
+      }
+    }
+    if (w) editor._image3LastImageWidget = w;
   }
 
   function getClosestBlock(el) {
@@ -151,6 +176,7 @@
 
   function bindImageFloatRefresh(editor) {
     function refreshAll() {
+      updateLastImageWidget(editor);
       ['image3FloatLeft', 'image3FloatNone', 'image3FloatRight'].forEach(function(name) {
         var cmd = editor.getCommand(name);
         if (cmd && typeof cmd.refresh === 'function') {
@@ -206,6 +232,7 @@
     icons: 'imagefloatleft,imagefloatnone,imagefloatright',
     hidpi: false,
     init: function(editor) {
+      editor._image3LastImageWidget = null;
       addImageFloatCommand(editor, 'image3FloatLeft', 'left');
       addImageFloatCommand(editor, 'image3FloatNone', 'none');
       addImageFloatCommand(editor, 'image3FloatRight', 'right');
@@ -232,6 +259,7 @@
       }
 
       editor.on('instanceReady', function() {
+        updateLastImageWidget(editor);
         debug(editor, 'instanceReady');
         wrapJustifyCommands(editor);
       });
