@@ -16,18 +16,21 @@ export async function onRequestPost({ request, env }) {
     const body = await request.json().catch(() => ({}));
     const { cloudName, apiKey, apiSecret } = requireCloudinaryEnv(env);
     const timestamp = Math.floor(Date.now() / 1000);
+    const enforcedFolder = String(env.CLOUDINARY_ASSET_FOLDER || '').trim().replace(/^\/+|\/+$/g, '');
+    const requested = pickAllowed(body || {}, [
+      'folder',
+      'public_id',
+      'overwrite',
+      'tags',
+      'context',
+      'eager',
+      'invalidate',
+      'upload_preset',
+    ]);
     const params = {
       timestamp,
-      ...pickAllowed(body || {}, [
-        'folder',
-        'public_id',
-        'overwrite',
-        'tags',
-        'context',
-        'eager',
-        'invalidate',
-        'upload_preset',
-      ]),
+      ...requested,
+      ...(enforcedFolder ? { folder: enforcedFolder } : {}),
     };
     const signature = await buildUploadSignature(apiSecret, params);
 

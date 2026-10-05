@@ -75,6 +75,7 @@ const renderMlWidget = () => `<!doctype html>
 const renderCustomDialog = ({ request, env }) => {
   const url = new URL(request.url);
   const templateDir = (env.CLOUDINARY_TEMPLATE_DIR || 'src/img-template').replace(/^\/+|\/+$/g, '');
+  const assetFolder = (env.CLOUDINARY_ASSET_FOLDER || '').replace(/^\/+|\/+$/g, '');
   const defaultSrcsetWidths = env.CLOUDINARY_TEMPLATE_DEFAULT_SRCSET_WIDTHS || '300,600,900,1500';
   const defaultTransform = env.CLOUDINARY_TEMPLATE_DEFAULT_TRANSFORM || '';
   const provider = JSON.stringify(url.searchParams.get('provider') || '');
@@ -84,6 +85,7 @@ const renderCustomDialog = ({ request, env }) => {
   const templateDirJson = JSON.stringify(templateDir);
   const defaultSrcsetWidthsJson = JSON.stringify(defaultSrcsetWidths);
   const defaultTransformJson = JSON.stringify(defaultTransform);
+  const assetFolderJson = JSON.stringify(assetFolder);
   return `<!doctype html>
 <html>
 <head>
@@ -155,6 +157,7 @@ const renderCustomDialog = ({ request, env }) => {
       repo: ${repo},
       branch: ${branch},
       templateDir: ${templateDirJson},
+      assetFolder: ${assetFolderJson},
       defaultSrcsetWidths: ${defaultSrcsetWidthsJson},
       defaultTransform: ${defaultTransformJson},
     };
@@ -191,6 +194,46 @@ const renderCustomDialog = ({ request, env }) => {
     const parseWidths = (value) => String(value || '').split(',').map(v => Number(v.trim())).filter(v => Number.isFinite(v) && v > 0);
     const escapeHtml = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
     const readLocalToken = () => localStorage.getItem('token') || '';
+    const normalizeFolder = (value) => String(value || '').trim().replace(/^\\/+|\\/+$/g, '');
+    const stripExtension = (name) => {
+      const s = String(name || '').trim();
+      return s.replace(/\\.[^/.]+$/, '');
+    };
+    const sanitizePublicIdBase = (name) => {
+      const raw = stripExtension(name)
+        .normalize('NFKC')
+        .replace(/\\s+/g, '-')
+        .replace(/[^0-9A-Za-z._-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .replace(/^[._-]+|[._-]+$/g, '')
+        .toLowerCase();
+      return (raw || 'img').slice(0, 80);
+    };
+    const randomSuffix = (len = 4) => {
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      let out = '';
+      const arr = new Uint8Array(len);
+      crypto.getRandomValues(arr);
+      for (let i = 0; i < len; i += 1) out += chars[arr[i] % chars.length];
+      return out;
+    };
+    const buildUploadPublicId = (fileName) => {
+      const base = sanitizePublicIdBase(fileName);
+      return base + '-' + randomSuffix(4);
+    };
+    const sanitizeContextValue = (value) => String(value || '')
+      .replace(/\\|/g, '/')
+      .replace(/=/g, '-')
+      .trim();
+    const buildUploadContext = (fileName) => {
+      const original = String(fileName || '').trim();
+      const alt = stripExtension(original);
+      const pairs = [];
+      if (original) pairs.push('original_filename=' + sanitizeContextValue(original));
+      if (alt) pairs.push('alt=' + sanitizeContextValue(alt));
+      return pairs.join('|');
+    };
 
     const loadAssets = async (reset = true) => {
       if (state.loadingAssets) return;
@@ -393,10 +436,17 @@ const renderCustomDialog = ({ request, env }) => {
       if (!file) return;
       try {
         setStatus('Preparing upload…');
+        const publicId = buildUploadPublicId(file.name);
+        const context = buildUploadContext(file.name);
+        const folder = normalizeFolder(cfg.assetFolder);
         const signRes = await fetch('/api/cloudinary-upload-sign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
+          body: JSON.stringify({
+            public_id: publicId,
+            ...(folder ? { folder } : {}),
+            ...(context ? { context } : {}),
+          }),
         });
         const sign = await signRes.json();
         if (!signRes.ok) throw new Error(sign?.message || 'Failed to sign upload');

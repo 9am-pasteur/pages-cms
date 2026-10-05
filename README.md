@@ -41,6 +41,10 @@ Pages CMS (Vue版) では、`rich-text` フィールドに対して 2 種類の�
     - `CLOUDINARY_ASSET_TYPES`（既定: `upload`）
     - `CLOUDINARY_ASSET_FOLDER`（任意）: 指定すると `public_id=<folder>/*` 配下のみに絞り込み
     - `CLOUDINARY_DELIVERY_SIGNED=true` の場合のみ、`preview_url` を署名URLとして返します（strict transformations 向け）。
+  - custom ダイアログの upload は既定で次の挙動です:
+    - `public_id`: 元ファイル名（拡張子除去）ベース + 4文字ランダムサフィックス（例: `my-image-a1b2`）
+    - `context`: `original_filename` と `alt`（拡張子除去ファイル名）を保存
+    - `CLOUDINARY_ASSET_FOLDER` を設定している場合、upload先 folder もその値に固定されます。
   - strict transformations で配信URL署名が必要な場合:
     - `CLOUDINARY_DELIVERY_SIGNED=true` を指定すると、`/api/cloudinary-delivery-urls` が署名URLを返します。
   - custom テンプレートで使える主な差し込み変数:
