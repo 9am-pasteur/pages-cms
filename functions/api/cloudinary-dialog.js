@@ -116,8 +116,9 @@ const renderCustomDialog = ({ request, env }) => {
       height:28px;
       border:1px solid #ef4444;
       border-radius:999px;
-      background:#fff;
-      color:#ef4444;
+      background:#ef4444;
+      color:#fff;
+      opacity:0.7;
       display:none;
       align-items:center;
       justify-content:center;
@@ -125,7 +126,7 @@ const renderCustomDialog = ({ request, env }) => {
     }
     .asset .delete-btn svg { width:20px; height:20px; display:block; }
     .asset:hover .delete-btn, .asset.selected .delete-btn { display:flex; }
-    .asset .delete-btn:hover { background:#fef2f2; }
+    .asset .delete-btn:hover { opacity:1; }
     .side { overflow:auto; padding:10px; }
     .side label { display:block; font-size:12px; color:#666; margin-bottom:4px; }
     .side select, .side textarea { width:100%; box-sizing:border-box; border:1px solid #ccc; border-radius:8px; padding:8px; }
