@@ -22,38 +22,8 @@ Pages CMS (Vue版) では、`rich-text` フィールドに対して 2 種類の�
 - **CKEditor 4 (オプション)**: 既存HTMLをなるべく壊さず編集したい場合に有効。
   - `.pages.yml` のフィールド定義で `options.editor: ckeditor4` を指定。
   - CKEditor 4.22.1 を `public/js/ckeditor/ckeditor.js` として同梱し、必要なプラグイン（例: `plugins/cloudinary`）を配置してください。
-  - Cloudinary メディア挿入は `CLOUDINARY_DIALOG_MODE` で選択:
-    1. `custom`（推奨）: 一覧 + upload + テンプレート選択 + insert を1画面で提供
-    2. `mlw`: Cloudinary Media Library Widget
-    3. `proxy`: `CLOUDINARY_DIALOG_URL` をリバースプロキシ
-  - `custom` / `mlw` 共通で `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` が必要です（`mlw` は任意で `CLOUDINARY_USERNAME`）。
-  - Cloudinary 側のロールにより API 実行可否が変わります。`custom` モードでは一覧取得（Admin API）とアップロード（Upload API）を使うため、権限不足のキーだと assets が空表示になったり upload が失敗します。
-    - 少なくとも Admin API / Upload API を許可したキーを使ってください。
-    - Free / self-serve paid プランではカスタムロールを使えないため、運用によっては Master Admin キーが必要になります。
-  - `custom` のテンプレート取得は以下を利用:
-    - `CLOUDINARY_TEMPLATE_DIR`（既定: `src/img-templates`）
-    - `CLOUDINARY_TEMPLATE_DEFAULT_SRCSET_WIDTHS`（既定: `300,600,900,1500`）
-    - `CLOUDINARY_TEMPLATE_DEFAULT_TRANSFORM`（任意）
-  - `custom` の一覧サムネイルはバックエンドで `preview_url` を一括生成します（1件ずつ追加API呼び出しはしません）。
-    - `CLOUDINARY_PREVIEW_WIDTH`（既定: `240`）
-    - `CLOUDINARY_PREVIEW_HEIGHT`（既定: `140`）
-    - `CLOUDINARY_PREVIEW_CROP`（既定: `fill`）
-    - `CLOUDINARY_ASSET_TYPES`（既定: `upload`）
-    - `CLOUDINARY_ASSET_FOLDER`（任意）: 指定すると `public_id=<folder>/*` 配下のみに絞り込み
-    - `CLOUDINARY_DELIVERY_SIGNED=true` の場合のみ、`preview_url` を署名URLとして返します（strict transformations 向け）。
-  - custom ダイアログの upload は既定で次の挙動です:
-    - `public_id`: 元ファイル名（拡張子除去）ベース + 4文字ランダムサフィックス（例: `my-image-a1b2`）
-    - `context`: `original_filename` と `alt`（拡張子除去ファイル名）を保存
-    - `CLOUDINARY_ASSET_FOLDER` を設定している場合、upload先 folder もその値に固定されます。
-  - custom ダイアログでは画像削除も可能です。削除前に確認ダイアログを表示しますが、参照中記事の画像が欠落する可能性があるため運用注意してください。
-    - `CLOUDINARY_ALLOW_DELETE`（既定: `true`）で削除可否を切り替えできます。`false` にするとUIから削除ボタンを非表示にし、削除APIも拒否します。
-  - 誤削除対策として、Cloudinary の backup / restore を有効化しておくことを推奨します。
-  - strict transformations で配信URL署名が必要な場合:
-    - `CLOUDINARY_DELIVERY_SIGNED=true` を指定すると、`/api/cloudinary-delivery-urls` が署名URLを返します。
-  - custom テンプレートで使える主な差し込み変数:
-    - `${src}` / `${srcset}` / `${alt}` / `${public_id}`
-    - `${original_url}`（原本URL。PDFサムネイルを `<a href="${original_url}">` で囲む用途）
-  - 1画面統合の custom ダイアログ計画メモ: [docs/cloudinary-custom-dialog-plan.md](./docs/cloudinary-custom-dialog-plan.md)
+  - Cloudinary を画像ストアとして使う拡張プラグイン（custom dialog / MLW / proxy）を利用可能です。
+    - セットアップ手順・設定例・環境変数リファレンス: [docs/cloudinary-custom-dialog-plan.md](./docs/cloudinary-custom-dialog-plan.md)
   - 画像配置 UI 拡張（`image3`）: [docs/ckeditor-image3.md](./docs/ckeditor-image3.md)
 
 設定例（.pages.yml の抜粋）:

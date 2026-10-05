@@ -1,125 +1,172 @@
-# Cloudinary Custom Dialog Plan (Draft)
+# Cloudinary Plugin (CKEditor4)
 
-このメモは、CKEditor4 の Cloudinary 連携を **MLW依存から段階的に脱却**し、
-`一覧 + アップロード + テンプレート挿入` を1つのUIで完結させるための設計ドラフトです。
-作業中断時の再開ポイントとして使うことを想定しています。
+このドキュメントは、この fork で追加した Cloudinary 連携プラグインの実装仕様と利用方法をまとめたものです。
+（旧 `Plan (Draft)` の内容を、現実装ベースに整理した版です）
 
-## 1. 背景と目的
+## 目的とコンセプト
 
-- 現行は以下2方式:
-  - `CLOUDINARY_DIALOG_URL` を使うリバースプロキシ型（既存の独自ダイアログ）
-  - Cloudinary Media Library Widget (MLW)
-- 既存の独自ダイアログは便利だが、オンプレ側の特殊セットアップ依存がある。
-- MLW はテンプレート差し込み（`figure`, `srcset` など）の自由度が不足する。
-- 編集者に Cloudinary の個別ログインを意識させない運用にしたい。
+CKEditor4 の画像挿入を、Cloudinary を画像ストアとして使う前提で拡張します。
 
-目的:
+- 編集者は CMS 画面から画像一覧・アップロード・テンプレート挿入を行える
+- Cloudinary の秘密情報（`API_SECRET`）は Functions 側だけで扱う
+- 既存運用に応じて 3 モードを切り替えられる
 
-- Cloudinary の API設定のみで利用開始できること
-- 1ダイアログ内で以下を完結すること
-  - 画像一覧
-  - 画像アップロード
-  - テンプレート選択
-  - 挿入
+モード:
 
-## 2. 方針（確定）
+1. `custom`（推奨）
+   - 一覧 + upload + テンプレート選択 + insert を 1 画面で提供
+2. `mlw`
+   - Cloudinary Media Library Widget を使う
+3. `proxy`
+   - 既存の独自ダイアログ URL（`CLOUDINARY_DIALOG_URL`）をリバースプロキシ
 
-- ダイアログ実装モードを環境変数で切り替える。
-- `custom` を主軸にしつつ、`mlw` も残す。
-- テンプレートは repo から取得（既存 Provider 抽象を流用）。
-- Cloudinary 秘密情報（`API_SECRET`）は Functions 側のみで扱う。
+## すぐ試す最小セットアップ
 
-想定モード:
+前提:
+
+- `public/js/ckeditor/ckeditor.js` が配置済み
+- `plugins/cloudinary` が利用可能
+- `rich-text` で `editor: ckeditor4` を使っている
+
+Cloudflare Pages の Variables/Secrets（最小）:
 
 - `CLOUDINARY_DIALOG_MODE=custom`
-- `CLOUDINARY_DIALOG_MODE=mlw`
-- `CLOUDINARY_DIALOG_MODE=proxy`（`CLOUDINARY_DIALOG_URL` 利用）
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
 
-## 3. テンプレート形式（確定）
-
-フロントマターの自由度に依存しすぎず、**ベタな文字列中心**で扱う。
-
-- テンプレート本体は `html` 文字列。
-- 差し込みは最小プレースホルダのみ:
-  - `${src}`
-  - `${srcset}`
-  - `${alt}`
-  - `${public_id}`
-- `class/style/sizes` は原則 `html` 文字列に直接記述。
-- `srcset` 解像度セットは別フィールドで指定（例: `"300,600,900,1500"`）。
-
-`alt` の初期値ルール:
-
-- `asset_alt` -> `public_id` -> `""`
-
-例（概念）:
+`.pages.yml` 例:
 
 ```yaml
+fields:
+  - name: body
+    label: Body
+    type: rich-text
+    options:
+      editor: ckeditor4
+      format: html
+      ckeditorConfig:
+        extraPlugins: 'cloudinary,justify,image3'
+        removePlugins: 'image'
+        # テンプレート例（<a><img srcset ...></a>）を確実に残す最小許可例
+        extraAllowedContent: 'a[!href,target,rel];img[!src,alt,class,style,srcset,sizes,width,height]'
+```
+
+補足:
+
+- CKEditor4 の許可設定（ACF）は既存設定に依存します。`extraAllowedContent` を未設定でも通る構成はありますが、`srcset` / `sizes` / `class` / `style` や `<a target rel>` を使うテンプレートを確実に保存したい場合は、上記のように明示しておくのが安全です。
+
+## テンプレート利用（custom モード）
+
+既定テンプレートディレクトリ:
+
+- `src/img-templates`（`CLOUDINARY_TEMPLATE_DIR` で変更可）
+
+テンプレートは 1 ファイル 1 テンプレート（frontmatter + `html` 文字列）。
+
+`src/img-templates/book-right.md` 例:
+
+```md
+---
 no: "20"
 title: 右寄せ著書紹介234
 srcsetWidths: "300,600,900,1500"
-html: '<img class="image-book" src="${src}" srcset="${srcset}" sizes="234px" alt="${alt}" style="float:right;width:234px;margin-left:10px;">'
+html: '<a href="${original_url}" target="_blank" rel="noopener"><img class="image-book" src="${src}" srcset="${srcset}" sizes="234px" alt="${alt}" style="float:right;width:234px;margin-left:10px;"></a>'
+---
 ```
 
-## 4. API案（MVP）
+使える主な差し込み変数:
 
-Functions で提供:
+- `${src}`
+- `${srcset}`
+- `${alt}`
+- `${public_id}`
+- `${original_url}`（原本URL）
+- `${href}`（`${original_url}` と同等）
 
-- `GET /api/cloudinary-assets`
-  - 用途: 一覧、検索、ページング
-  - 入力例: `q`, `next_cursor`, `max_results`
-  - 出力例: `resources[]`, `next_cursor`
+## 挙動（custom モード）
 
-- `POST /api/cloudinary-upload-sign`
-  - 用途: signed upload 用の署名発行
-  - 入力例: `folder`, `public_id`, `timestamp`, `overwrite`
-  - 出力例: `signature`, `api_key`, `timestamp`, `cloud_name`
+- 一覧は `GET /api/cloudinary-assets` で取得
+- 一覧サムネイルは backend で `preview_url` を生成（個別追加API呼び出しなし）
+- upload は `POST /api/cloudinary-upload-sign` で署名し、ブラウザから Cloudinary Upload API に直接送信
+- upload 時の既定:
+  - `public_id`: 元ファイル名（拡張子除去）ベース + 4文字ランダムサフィックス
+  - `context`: `original_filename`, `alt`（拡張子除去ファイル名）
+- `CLOUDINARY_ASSET_FOLDER` 設定時:
+  - 一覧は `public_id=<folder>/*` に絞り込み
+  - upload の `folder` も同値に固定
+  - UI 表示名（一覧・Selected・デフォルト `alt` / `${public_id}`）では先頭の `<folder>/` を省略
+- 削除:
+  - `POST /api/cloudinary-delete`
+  - UI は hover または選択状態で削除ボタン表示
+  - 確認ダイアログあり
+  - `CLOUDINARY_ALLOW_DELETE=false` で UI 非表示 + API 拒否
 
-注記:
+## 環境変数リファレンス
 
-- アップロード本体はブラウザから Cloudinary Upload API へ直接送る（署名は Functions 経由）。
-- strict transformations の有無に応じて、将来的に URL 生成の署名対応を追加可能にする。
+### 必須（`custom` / `mlw`）
 
-## 5. テンプレート取得の実装方針
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
 
-- 既存の Provider 抽象（github/gitlab/proxy）を再利用する。
-- CKEditor ダイアログ iframe 側で認証を完結させない。
-- 親画面がテンプレートを取得し、`postMessage` でダイアログへ渡す。
-- ダイアログ側は UI 専用（取得失敗時も認証分岐を持たない）。
+### モード切替
 
-## 6. UI構成（MVP）
+- `CLOUDINARY_DIALOG_MODE`
+  - `custom` / `mlw` / `proxy`
+- `CLOUDINARY_DIALOG_URL`
+  - `proxy` モード時の上流ダイアログURL
+- `CLOUDINARY_USERNAME`
+  - `mlw` で必要な場合のみ
 
-1ダイアログ内で以下を表示:
+### custom: テンプレート
 
-- 上段: 検索入力 + Upload ボタン
-- 中段左: 画像一覧（サムネイル、選択状態）
-- 中段右: テンプレート選択 + 挿入プレビュー
-- 下段: Insert / Cancel
+- `CLOUDINARY_TEMPLATE_DIR`（既定: `src/img-templates`）
+- `CLOUDINARY_TEMPLATE_DEFAULT_SRCSET_WIDTHS`（既定: `300,600,900,1500`）
+- `CLOUDINARY_TEMPLATE_DEFAULT_TRANSFORM`（任意）
 
-Insert 時:
+### custom: 一覧/サムネイル
 
-- 選択画像 + 選択テンプレートから HTML を生成
-- `editor.insertHtml(...)` で挿入
+- `CLOUDINARY_PREVIEW_WIDTH`（既定: `240`）
+- `CLOUDINARY_PREVIEW_HEIGHT`（既定: `140`）
+- `CLOUDINARY_PREVIEW_CROP`（既定: `fill`）
+- `CLOUDINARY_ASSET_TYPES`（既定: `upload`）
+- `CLOUDINARY_ASSET_FOLDER`（任意）
+- `CLOUDINARY_DELIVERY_SIGNED`
+  - `true` のとき `preview_url` を署名URLで返す（strict transformations 向け）
 
-## 7. セキュリティ
+### custom: 削除制御
 
-- `CLOUDINARY_API_SECRET` は Functions のみ（フロントへ非公開）。
-- `/api/cloudinary-*` は Cloudflare Access または Basic 認証で保護（推奨: 両方）。
-- テンプレート解釈時に任意スクリプト評価はしない（プレースホルダ置換のみ）。
+- `CLOUDINARY_ALLOW_DELETE`（既定: `true`）
+  - `false` にすると削除ボタン非表示・削除API拒否
 
-## 8. 段階実装の順序
+## セキュリティ・運用
 
-1. モード切替 (`custom/mlw/proxy`) の骨組み追加
-2. `cloudinary-assets` 実装（一覧のみ）
-3. `cloudinary-upload-sign` 実装（署名のみ）
-4. custom ダイアログ UI（一覧 -> 選択 -> insert）
-5. テンプレート連携（親 -> iframe）
-6. `srcset` 生成・プレースホルダ差し込み
-7. README/CUSTOMIZATIONS へ正式反映
+- `CLOUDINARY_API_SECRET` は Functions 側のみで扱う
+- `/api/cloudinary-*` は Cloudflare Access か Basic 認証で保護する（推奨）
+- custom モードでは Cloudinary の権限不足時に、一覧が空表示・upload失敗になることがある
+  - 少なくとも Admin API / Upload API が実行できるキーを使う
+  - Free / self-serve paid ではカスタムロール不可のため、運用によっては Master Admin キーが必要
+- 削除を使う場合は Cloudinary backup / restore を有効化推奨
 
-## 9. 未決事項（次回検討）
+## トラブルシュート（実装依存情報）
 
-- テンプレート置き場の固定パス（例: `.pages-cms/templates/cloudinary/*.yml` など）
-- `src` の既定幅（`srcsetWidths` の先頭を使うか、別指定を持つか）
-- strict transformations 前提時の配信URL署名戦略
-- 画像一覧 API の検索文法（単純文字列か Cloudinary expression まで許容するか）
+- custom ダイアログ内部での主な API:
+  - `GET /api/cloudinary-assets`
+  - `POST /api/cloudinary-upload-sign`
+  - `POST /api/cloudinary-delivery-urls`
+  - `POST /api/cloudinary-delete`
+  - `GET /api/cloudinary-templates`
+- 権限不足の典型:
+  - 一覧が空、または upload が失敗
+  - APIレスポンスと Cloudflare Functions ログを合わせて確認
+- strict transformations 利用時:
+  - `CLOUDINARY_DELIVERY_SIGNED=true` を有効化
+  - 署名URL経由で `src` / `srcset` を生成する
+
+## 実装メモ（開発者向け）
+
+- `custom` のテンプレート取得は既存 Provider 抽象（github/gitlab/proxy）を流用
+- ダイアログは Functions が返す HTML/JS で描画
+- upload は署名発行のみ Functions、転送本体はブラウザ -> Cloudinary 直送
+- 旧「計画」時点の未実装候補（段階計画/未決事項）は本書から削除済み
