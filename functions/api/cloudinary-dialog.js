@@ -74,7 +74,7 @@ const renderMlWidget = () => `<!doctype html>
 
 const renderCustomDialog = ({ request, env }) => {
   const url = new URL(request.url);
-  const templateDir = (env.CLOUDINARY_TEMPLATE_DIR || 'src/img-template').replace(/^\/+|\/+$/g, '');
+  const templateDir = (env.CLOUDINARY_TEMPLATE_DIR || 'src/img-templates').replace(/^\/+|\/+$/g, '');
   const assetFolder = (env.CLOUDINARY_ASSET_FOLDER || '').replace(/^\/+|\/+$/g, '');
   const defaultSrcsetWidths = env.CLOUDINARY_TEMPLATE_DEFAULT_SRCSET_WIDTHS || '300,600,900,1500';
   const defaultTransform = env.CLOUDINARY_TEMPLATE_DEFAULT_TRANSFORM || '';
@@ -215,6 +215,13 @@ const renderCustomDialog = ({ request, env }) => {
     const setAssetsStatus = (msg) => { els.assetsStatus.textContent = msg || ''; };
     const parseWidths = (value) => String(value || '').split(',').map(v => Number(v.trim())).filter(v => Number.isFinite(v) && v > 0);
     const escapeHtml = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+    const displayPublicId = (publicId) => {
+      const id = String(publicId || '');
+      const folder = normalizeFolder(cfg.assetFolder);
+      if (!folder) return id;
+      const prefix = folder + '/';
+      return id.startsWith(prefix) ? id.slice(prefix.length) : id;
+    };
     const readLocalToken = () => localStorage.getItem('token') || '';
     const normalizeFolder = (value) => String(value || '').trim().replace(/^\\/+|\\/+$/g, '');
     const stripExtension = (name) => {
@@ -304,7 +311,7 @@ const renderCustomDialog = ({ request, env }) => {
         var thumb = asset.preview_url || asset.secure_url;
         card.innerHTML = '<img src="' + escapeHtml(thumb) + '" alt="" />' +
           (cfg.allowDelete ? '<button type="button" class="delete-btn" title="Delete image" aria-label="Delete image"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.2 3.5V2.2A2.2 2.2 0 0 1 9.4 0h5.2a2.2 2.2 0 0 1 2.2 2.2v1.3h-1.4V2.2a.8.8 0 0 0-.8-.8H9.4a.8.8 0 0 0-.8.8v1.3Z"/><path fill="currentColor" fill-rule="evenodd" d="M3.6 2.8h16.8a2.2 2.2 0 0 1 0 4.4H3.6a2.2 2.2 0 0 1 0-4.4Zm0 1.4a.8.8 0 0 0 0 1.6h16.8a.8.8 0 0 0 0-1.6Z"/><path fill="currentColor" fill-rule="evenodd" d="M3.6 7.2h16.8l-.6 14.5a2.5 2.5 0 0 1-2.5 2.3H6.7a2.5 2.5 0 0 1-2.5-2.3Zm1.4 0 .6 14.4c.03.56.47 1 1.1 1h10.6c.63 0 1.07-.44 1.1-1L19 7.2Z"/><path d="m7.8 9.1.7 11.4M12 9.1v11.4m4.2-11.4-.7 11.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>' : '') +
-          '<div class="meta">' + escapeHtml(asset.public_id) + '</div>';
+          '<div class="meta">' + escapeHtml(displayPublicId(asset.public_id)) + '</div>';
         const selectCard = () => {
           state.selectedAsset = asset;
           renderAssets();
@@ -356,7 +363,7 @@ const renderCustomDialog = ({ request, env }) => {
         els.assetGrid.appendChild(card);
       }
       els.summary.textContent = state.selectedAsset
-        ? ('Selected: ' + state.selectedAsset.public_id)
+        ? ('Selected: ' + displayPublicId(state.selectedAsset.public_id))
         : 'No asset selected.';
     };
 

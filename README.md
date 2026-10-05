@@ -31,7 +31,7 @@ Pages CMS (Vue版) では、`rich-text` フィールドに対して 2 種類の�
     - 少なくとも Admin API / Upload API を許可したキーを使ってください。
     - Free / self-serve paid プランではカスタムロールを使えないため、運用によっては Master Admin キーが必要になります。
   - `custom` のテンプレート取得は以下を利用:
-    - `CLOUDINARY_TEMPLATE_DIR`（既定: `src/img-template`）
+    - `CLOUDINARY_TEMPLATE_DIR`（既定: `src/img-templates`）
     - `CLOUDINARY_TEMPLATE_DEFAULT_SRCSET_WIDTHS`（既定: `300,600,900,1500`）
     - `CLOUDINARY_TEMPLATE_DEFAULT_TRANSFORM`（任意）
   - `custom` の一覧サムネイルはバックエンドで `preview_url` を一括生成します（1件ずつ追加API呼び出しはしません）。
