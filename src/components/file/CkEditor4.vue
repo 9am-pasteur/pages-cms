@@ -139,13 +139,16 @@ onMounted(async () => {
     if (imagePluginMode.value === 'image3') {
       pluginSet.add('image3');
     }
+    const mergedCkConfig = {
+      ...userCkConfig,
+      extraPlugins: Array.from(pluginSet).join(','),
+    };
 
     ck.value = CKEDITOR.replace(textareaEl.value, {
       language: 'ja',
-      extraPlugins: Array.from(pluginSet).join(','),
       versionCheck: false, // suppress LTSアップグレード通知（4.22.1 OSS固定運用向け）
       // 呼び出し元で上書き可能
-      ...userCkConfig,
+      ...mergedCkConfig,
     });
 
     ck.value.on('instanceReady', async () => {
