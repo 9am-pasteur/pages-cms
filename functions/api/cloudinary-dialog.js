@@ -112,8 +112,8 @@ const renderCustomDialog = ({ request, env }) => {
       position:absolute;
       top:6px;
       right:6px;
-      width:26px;
-      height:26px;
+      width:28px;
+      height:28px;
       border:1px solid #ef4444;
       border-radius:999px;
       background:#fff;
@@ -123,7 +123,7 @@ const renderCustomDialog = ({ request, env }) => {
       justify-content:center;
       cursor:pointer;
     }
-    .asset .delete-btn svg { width:17px; height:17px; display:block; }
+    .asset .delete-btn svg { width:20px; height:20px; display:block; }
     .asset:hover .delete-btn, .asset.selected .delete-btn { display:flex; }
     .asset .delete-btn:hover { background:#fef2f2; }
     .side { overflow:auto; padding:10px; }
@@ -302,7 +302,7 @@ const renderCustomDialog = ({ request, env }) => {
         card.className = 'asset' + (state.selectedAsset && state.selectedAsset.asset_id === asset.asset_id ? ' selected' : '');
         var thumb = asset.preview_url || asset.secure_url;
         card.innerHTML = '<img src="' + escapeHtml(thumb) + '" alt="" />' +
-          (cfg.allowDelete ? '<button type="button" class="delete-btn" title="Delete image" aria-label="Delete image"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 9.5h1.8v8H8zm6.2 0H16v8h-1.8zM9 6h6l.8 1.2H19V9H5V7.2h3.2zM7.4 9h9.2l-.7 10.2c-.1 1-1 1.8-2 1.8h-3.8c-1 0-1.9-.8-2-1.8z" fill="currentColor"/></svg></button>' : '') +
+          (cfg.allowDelete ? '<button type="button" class="delete-btn" title="Delete image" aria-label="Delete image"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.2 3.5V2.2A2.2 2.2 0 0 1 9.4 0h5.2a2.2 2.2 0 0 1 2.2 2.2v1.3h-1.4V2.2a.8.8 0 0 0-.8-.8H9.4a.8.8 0 0 0-.8.8v1.3Z"/><path fill="currentColor" fill-rule="evenodd" d="M3.6 2.8h16.8a2.2 2.2 0 0 1 0 4.4H3.6a2.2 2.2 0 0 1 0-4.4Zm0 1.4a.8.8 0 0 0 0 1.6h16.8a.8.8 0 0 0 0-1.6Z"/><path fill="currentColor" fill-rule="evenodd" d="M3.6 7.2h16.8l-.6 14.5a2.5 2.5 0 0 1-2.5 2.3H6.7a2.5 2.5 0 0 1-2.5-2.3Zm1.4 0 .6 14.4c.03.56.47 1 1.1 1h10.6c.63 0 1.07-.44 1.1-1L19 7.2Z"/><path d="m7.8 9.1.7 11.4M12 9.1v11.4m4.2-11.4-.7 11.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>' : '') +
           '<div class="meta">' + escapeHtml(asset.public_id) + '</div>';
         const selectCard = () => {
           state.selectedAsset = asset;
