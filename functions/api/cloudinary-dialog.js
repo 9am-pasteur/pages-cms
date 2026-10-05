@@ -78,6 +78,7 @@ const renderCustomDialog = ({ request, env }) => {
   const assetFolder = (env.CLOUDINARY_ASSET_FOLDER || '').replace(/^\/+|\/+$/g, '');
   const defaultSrcsetWidths = env.CLOUDINARY_TEMPLATE_DEFAULT_SRCSET_WIDTHS || '300,600,900,1500';
   const defaultTransform = env.CLOUDINARY_TEMPLATE_DEFAULT_TRANSFORM || '';
+  const allowDelete = String(env.CLOUDINARY_ALLOW_DELETE || 'true').trim().toLowerCase() !== 'false';
   const provider = JSON.stringify(url.searchParams.get('provider') || '');
   const owner = JSON.stringify(url.searchParams.get('owner') || '');
   const repo = JSON.stringify(url.searchParams.get('repo') || '');
@@ -86,6 +87,7 @@ const renderCustomDialog = ({ request, env }) => {
   const defaultSrcsetWidthsJson = JSON.stringify(defaultSrcsetWidths);
   const defaultTransformJson = JSON.stringify(defaultTransform);
   const assetFolderJson = JSON.stringify(assetFolder);
+  const allowDeleteJson = JSON.stringify(allowDelete);
   return `<!doctype html>
 <html>
 <head>
@@ -102,10 +104,29 @@ const renderCustomDialog = ({ request, env }) => {
     .assets { overflow:auto; padding:10px; border-right:1px solid #ddd; }
     .assets-status { margin-bottom:8px; font-size:12px; color:#b91c1c; white-space:pre-wrap; }
     .asset-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
-    .asset { border:1px solid #ddd; border-radius:8px; overflow:hidden; cursor:pointer; background:#fff; }
+    .asset { position:relative; border:1px solid #ddd; border-radius:8px; overflow:hidden; cursor:pointer; background:#fff; }
     .asset.selected { outline: 2px solid #2563eb; }
     .asset img { width:100%; height:110px; object-fit:cover; display:block; background:#f6f6f6; }
     .asset .meta { padding:6px 8px; font-size:12px; color:#444; word-break:break-all; }
+    .asset .delete-btn {
+      position:absolute;
+      top:6px;
+      right:6px;
+      width:24px;
+      height:24px;
+      border:1px solid #ef4444;
+      border-radius:999px;
+      background:#fff;
+      color:#ef4444;
+      font-size:14px;
+      line-height:1;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+    }
+    .asset:hover .delete-btn, .asset.selected .delete-btn { display:flex; }
+    .asset .delete-btn:hover { background:#fef2f2; }
     .side { overflow:auto; padding:10px; }
     .side label { display:block; font-size:12px; color:#666; margin-bottom:4px; }
     .side select, .side textarea { width:100%; box-sizing:border-box; border:1px solid #ccc; border-radius:8px; padding:8px; }
@@ -160,6 +181,7 @@ const renderCustomDialog = ({ request, env }) => {
       assetFolder: ${assetFolderJson},
       defaultSrcsetWidths: ${defaultSrcsetWidthsJson},
       defaultTransform: ${defaultTransformJson},
+      allowDelete: ${allowDeleteJson},
     };
 
     const state = {
@@ -276,16 +298,61 @@ const renderCustomDialog = ({ request, env }) => {
     const renderAssets = () => {
       els.assetGrid.innerHTML = '';
       for (const asset of state.assets) {
-        const card = document.createElement('button');
-        card.type = 'button';
+        const card = document.createElement('div');
+        card.tabIndex = 0;
         card.className = 'asset' + (state.selectedAsset && state.selectedAsset.asset_id === asset.asset_id ? ' selected' : '');
         var thumb = asset.preview_url || asset.secure_url;
-        card.innerHTML = '<img src="' + escapeHtml(thumb) + '" alt="" /><div class="meta">' + escapeHtml(asset.public_id) + '</div>';
-        card.addEventListener('click', () => {
+        card.innerHTML = '<img src="' + escapeHtml(thumb) + '" alt="" />' +
+          (cfg.allowDelete ? '<button type="button" class="delete-btn" title="Delete image" aria-label="Delete image">🗑</button>' : '') +
+          '<div class="meta">' + escapeHtml(asset.public_id) + '</div>';
+        const selectCard = () => {
           state.selectedAsset = asset;
           renderAssets();
           renderPreview();
+        };
+        card.addEventListener('click', selectCard);
+        card.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            selectCard();
+          }
         });
+        const deleteBtn = card.querySelector('.delete-btn');
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', async (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const ok = window.confirm('この画像を参照中の記事があった場合、画像が表示されなくなります。\\n削除しますか？');
+            if (!ok) return;
+            try {
+              setStatus('Deleting image…');
+              const res = await fetch('/api/cloudinary-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  public_id: asset.public_id,
+                  type: asset.type || 'upload',
+                }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) {
+                throw new Error(data?.message || 'Delete failed');
+              }
+              state.assets = state.assets.filter((a) => {
+                if (asset.asset_id && a.asset_id) return a.asset_id !== asset.asset_id;
+                return !(a.public_id === asset.public_id && a.type === asset.type);
+              });
+              if (state.selectedAsset && state.selectedAsset.asset_id === asset.asset_id) {
+                state.selectedAsset = null;
+              }
+              renderAssets();
+              renderPreview();
+              setStatus('Image deleted.');
+            } catch (e) {
+              setStatus(e.message || 'Delete failed');
+            }
+          });
+        }
         els.assetGrid.appendChild(card);
       }
       els.summary.textContent = state.selectedAsset
