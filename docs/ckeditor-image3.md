@@ -1,6 +1,6 @@
-# CKEditor4 `image3` plugin (image2 UX extension)
+# CKEditor4 `image3` plugin
 
-このドキュメントは、`image2` を拡張する `image3` の方針と使い方をまとめたものです。
+このドキュメントは、`image3` の方針と使い方をまとめたものです。
 
 ## 目的
 
@@ -17,7 +17,7 @@
 
 ## 使い方
 
-`.pages.yml` の `rich-text` フィールドで `imagePlugin: image3` を指定します。
+`.pages.yml` の `rich-text` フィールドで `extraPlugins` に `image3` を追加します。
 
 ```yaml
 - name: body
@@ -26,20 +26,18 @@
     editor: ckeditor4
     format: html
     ckeditorConfig:
-      imagePlugin: image3
-      # 必要に応じて toolbarGroups/toolbar を設定
+      extraPlugins: 'cloudinary,justify,image3'
+      removePlugins: 'image'
+      # 必要に応じて toolbarGroups / toolbar を設定
 ```
-
-実装側では `imagePlugin: image3` のとき、`extraPlugins` に `image3` を自動追加します。
 
 ## 注意
 
-- `image3` は `image2` に依存します（`requires: image2,justify`）。
-- 同一インスタンスで `image2` と `image3` を明示的に併用した場合、挙動差を避けるため `console.warn` を出します。
+- `image3` は単独プラグインとして有効化します。
+- `image2` と `image3` の同時有効化は避けてください。
 - 既存文書の `center` 画像は読めますが、新規操作では `center` を作らない設計です。
 
 ## 既知の互換方針
 
 - 画像ウィジェット名は `image`（既存 image2 と同じ）を前提に扱います。
 - Cloudinary 側の HTML 挿入連携（`<img>` / `<a><img></a>`）は維持されます。
-
