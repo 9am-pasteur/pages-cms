@@ -51,6 +51,7 @@ Pages CMS (Vue版) では、`rich-text` フィールドに対して 2 種類の�
     - `${src}` / `${srcset}` / `${alt}` / `${public_id}`
     - `${original_url}`（原本URL。PDFサムネイルを `<a href="${original_url}">` で囲む用途）
   - 1画面統合の custom ダイアログ計画メモ: [docs/cloudinary-custom-dialog-plan.md](./docs/cloudinary-custom-dialog-plan.md)
+  - 画像配置 UI 拡張（`image3`）: [docs/ckeditor-image3.md](./docs/ckeditor-image3.md)
 
 設定例（.pages.yml の抜粋）:
 

@@ -50,6 +50,7 @@ const textareaEl = ref(null);
 const ck = ref(null);
 const status = ref('loading');
 const selectedWidth = ref(String(props.options?.previewWidth || 'fluid'));
+const imagePluginMode = computed(() => String(props.options?.ckeditorConfig?.imagePlugin || '').trim().toLowerCase());
 
 const widthPresets = computed(() => {
   const configured = Array.isArray(props.options?.previewWidthPresets)
@@ -128,12 +129,23 @@ const setEditorData = async (value) => {
 onMounted(async () => {
   try {
     const CKEDITOR = await ensureCkEditor();
+    const userCkConfig = props.options?.ckeditorConfig || {};
+    const pluginSet = new Set(
+      String(userCkConfig.extraPlugins || 'cloudinary,justify')
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean)
+    );
+    if (imagePluginMode.value === 'image3') {
+      pluginSet.add('image3');
+    }
+
     ck.value = CKEDITOR.replace(textareaEl.value, {
       language: 'ja',
-      extraPlugins: 'cloudinary,justify',
+      extraPlugins: Array.from(pluginSet).join(','),
       versionCheck: false, // suppress LTSアップグレード通知（4.22.1 OSS固定運用向け）
       // 呼び出し元で上書き可能
-      ...(props.options?.ckeditorConfig || {}),
+      ...userCkConfig,
     });
 
     ck.value.on('instanceReady', async () => {
