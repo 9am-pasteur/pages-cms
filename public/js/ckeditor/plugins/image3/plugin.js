@@ -57,7 +57,17 @@
       }
     }
 
-    // 4) Last known selected image widget (survives toolbar focus hop).
+    // 4) Fallback: selected widget wrapper class in editable DOM.
+    var editable = editor.editable && editor.editable();
+    if (editable && editable.findOne && editor.widgets.getByElement) {
+      var selectedWrapper = editable.findOne('.cke_widget_selected');
+      if (selectedWrapper) {
+        var fromSelectedClass = editor.widgets.getByElement(selectedWrapper);
+        if (fromSelectedClass && fromSelectedClass.name === 'image') return fromSelectedClass;
+      }
+    }
+
+    // 5) Last known selected image widget (survives toolbar focus hop).
     var last = editor._image3LastImageWidget;
     if (last && last.name === 'image' && last.wrapper && editor.editable && editor.editable().contains(last.wrapper)) {
       return last;
@@ -80,6 +90,15 @@
       }
       if (!w && editor.widgets.focused && editor.widgets.focused.name === 'image') {
         w = editor.widgets.focused;
+      }
+      if (!w && editor.editable && editor.editable().findOne && editor.widgets.getByElement) {
+        var selectedWrapper = editor.editable().findOne('.cke_widget_selected');
+        if (selectedWrapper) {
+          var fromSelectedClass = editor.widgets.getByElement(selectedWrapper);
+          if (fromSelectedClass && fromSelectedClass.name === 'image') {
+            w = fromSelectedClass;
+          }
+        }
       }
     }
     if (w) editor._image3LastImageWidget = w;
