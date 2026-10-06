@@ -143,6 +143,9 @@ html: '<a href="${original_url}" target="_blank" rel="noopener"><img class="imag
 ## 挙動（custom モード）
 
 - 一覧は `GET /api/cloudinary-assets` で取得
+- 検索クエリ（`q`）は以下の補正を行う
+  - 特殊記号 `! ( ) { } [ ] * ^ ~ ? : \ = & > < "` を含まない場合、末尾に `*` を自動付加（前方一致）
+  - 特殊記号を含む場合はそのまま送信（Cloudinary Search expression を素通し）
 - 一覧サムネイルは backend で `preview_url` を生成（個別追加API呼び出しなし）
 - upload は `POST /api/cloudinary-upload-sign` で署名し、ブラウザから Cloudinary Upload API に直接送信
 - upload 時の既定:
