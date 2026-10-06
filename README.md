@@ -23,7 +23,7 @@ Pages CMS (Vue版) では、`rich-text` フィールドに対して 2 種類の�
   - `.pages.yml` のフィールド定義で `options.editor: ckeditor4` を指定。
   - CKEditor 4.22.1 を `public/js/ckeditor/ckeditor.js` として同梱し、必要なプラグイン（例: `plugins/cloudinary`）を配置してください。
   - Cloudinary を画像ストアとして使う拡張プラグイン（custom dialog / MLW / proxy）を利用可能です。
-    - セットアップ手順・設定例・環境変数リファレンス: [docs/cloudinary-custom-dialog-plan.md](./docs/cloudinary-custom-dialog-plan.md)
+    - セットアップ手順・設定例・環境変数リファレンス: [docs/cloudinary-plugin.md](./docs/cloudinary-plugin.md)
   - 画像配置 UI 拡張（`image3`）: [docs/ckeditor-image3.md](./docs/ckeditor-image3.md)
 
 設定例（.pages.yml の抜粋）:

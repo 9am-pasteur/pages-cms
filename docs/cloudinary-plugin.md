@@ -1,7 +1,6 @@
 # Cloudinary Plugin (CKEditor4)
 
 このドキュメントは、この fork で追加した Cloudinary 連携プラグインの実装仕様と利用方法をまとめたものです。
-（旧 `Plan (Draft)` の内容を、現実装ベースに整理した版です）
 
 ## 目的とコンセプト
 
@@ -19,6 +18,63 @@ CKEditor4 の画像挿入を、Cloudinary を画像ストアとして使う前�
    - Cloudinary Media Library Widget を使う
 3. `proxy`
    - 既存の独自ダイアログ URL（`CLOUDINARY_DIALOG_URL`）をリバースプロキシ
+
+## モード別クイックセットアップ
+
+### custom（推奨）
+
+用途:
+
+- Cloudinary API キーだけで、CMS 側から一覧/アップロード/テンプレート挿入を完結したい
+
+最小設定:
+
+- `CLOUDINARY_DIALOG_MODE=custom`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+
+### mlw
+
+用途:
+
+- Cloudinary Media Library Widget の標準UIを使いたい
+
+最小設定:
+
+- `CLOUDINARY_DIALOG_MODE=mlw`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+- （必要なら）`CLOUDINARY_USERNAME`
+
+注意:
+
+- `mlw` は API キーを環境変数に設定していても、Cloudinary 側のユーザー認証が必要になるケースがあります。
+- 「Pages CMS の認証だけで完結」したい運用では、通常 `custom` または `proxy` のほうが適します。
+
+### proxy
+
+用途:
+
+- 既存の独自ダイアログ実装をそのまま使い、Pages CMS 側はプロキシ入口だけ持ちたい
+
+最小設定:
+
+- `CLOUDINARY_DIALOG_MODE=proxy`
+- `CLOUDINARY_DIALOG_URL`（上流ダイアログ URL）
+
+proxy 先（上流）の責務:
+
+- ダイアログUIの提供（一覧/検索/アップロード/挿入など）
+- 必要な認証・認可（Cloudinary との接続権限管理を含む）
+- 最終的な挿入HTMLの生成
+
+proxy インターフェース:
+
+- Pages CMS 側は `/api/cloudinary-dialog` へのリクエストを `CLOUDINARY_DIALOG_URL` へ転送
+- 返ってきた HTML/JS をそのまま iframe で表示
+- `provider/owner/repo/branch` クエリはダイアログURLに付与される（上流で必要なら利用、不要なら無視可能）
 
 ## すぐ試す最小セットアップ
 
