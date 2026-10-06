@@ -17,6 +17,15 @@ const parseTypes = (value) => String(value || '')
   .map((v) => v.trim())
   .filter(Boolean);
 
+const QUERY_SPECIAL_CHARS_RE = /[!(){}\[\]*^~?:\\=&><"]/;
+
+const normalizeQueryExpression = (q) => {
+  const raw = String(q || '').trim();
+  if (!raw) return '';
+  if (QUERY_SPECIAL_CHARS_RE.test(raw)) return raw;
+  return raw.endsWith('*') ? raw : `${raw}*`;
+};
+
 const sanitizeFolder = (value) => String(value || '')
   .trim()
   .replace(/^\/+|\/+$/g, '');
@@ -58,7 +67,7 @@ export async function onRequestGet({ request, env }) {
     const url = new URL(request.url);
     const maxResults = toNumberInRange(url.searchParams.get('max_results'), 30, 1, 100);
     const nextCursor = url.searchParams.get('next_cursor') || '';
-    const q = (url.searchParams.get('q') || '').trim();
+    const q = normalizeQueryExpression(url.searchParams.get('q') || '');
     const explicitTypes = parseTypes(url.searchParams.get('types'));
     const fallbackTypes = parseTypes(env.CLOUDINARY_ASSET_TYPES || 'upload');
     const types = explicitTypes.length > 0 ? explicitTypes : fallbackTypes;
