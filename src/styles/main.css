@@ -672,3 +672,12 @@ html.dark .custom-scrollbar {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   @apply rounded-full bg-neutral-400 dark:bg-neutral-500;
 }
+
+/* CKEditor dialog controls */
+
+.cke_dialog input.cke_dialog_ui_checkbox_input,
+.cke_dialog input.cke_dialog_ui_radio_input {
+  appearance: auto !important;
+  -webkit-appearance: auto !important;
+  -moz-appearance: auto !important;
+}
