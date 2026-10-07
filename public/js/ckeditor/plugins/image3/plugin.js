@@ -14,6 +14,7 @@
 				'<figcaption>{captionPlaceholder}</figcaption>' +
 			'</figure>' ),
 		imageRowClass = 'image-row',
+		imageRowMagiclineAttr = 'data-image-row',
 		alignmentsObj = { left: 0, center: 1, right: 2 },
 		regexPercent = /^\s*(\d+\%)\s*$/i;
 
@@ -123,6 +124,7 @@
 		afterInit: function( editor ) {
 			// Keep paragraph justify behavior untouched and expose image-specific float controls.
 			setupImageFloatCommands( editor );
+			installMagiclineImageRowGuard( editor );
 
 			// Integrate with link commands (link plugin).
 			linkCommandIntegrator( editor );
@@ -732,7 +734,10 @@
 			}
 
 			function isImageRow( element ) {
-				return !!( element && element.type == CKEDITOR.NODE_ELEMENT && element.is( 'div' ) && element.hasClass( imageRowClass ) );
+				return !!( element &&
+					element.type == CKEDITOR.NODE_ELEMENT &&
+					element.is( 'div' ) &&
+					( element.hasClass( imageRowClass ) || !!element.getAttribute( imageRowMagiclineAttr ) ) );
 			}
 
 			function isCaptionedFigure( element ) {
@@ -791,7 +796,8 @@
 			function createImageRow() {
 				return doc.createElement( 'div', {
 					attributes: {
-						'class': imageRowClass
+						'class': imageRowClass,
+						'data-image-row': '1'
 					}
 				} );
 			}
@@ -1903,6 +1909,21 @@
 		editor.on( 'selectionChange', refreshFloatCommands );
 		editor.on( 'mode', refreshFloatCommands );
 		editor.on( 'contentDom', refreshFloatCommands );
+	}
+
+	function installMagiclineImageRowGuard( editor ) {
+		editor.on( 'contentDom', function() {
+			var magicline = editor._ && editor._.magiclineBackdoor && editor._.magiclineBackdoor.that,
+				tabuList;
+
+			if ( !magicline || !magicline.tabuList )
+				return;
+
+			tabuList = magicline.tabuList;
+
+			if ( CKEDITOR.tools.array.indexOf( tabuList, imageRowMagiclineAttr ) == -1 )
+				tabuList.push( imageRowMagiclineAttr );
+		} );
 	}
 
 	// Returns the focused widget, if of the type specific for this plugin.
