@@ -86,6 +86,11 @@
 				lang = editor.lang.image3,
 				image = widgetDef( editor );
 
+			// Ensure magicline skips image-row wrappers from the start.
+			config.magicline_tabuList = config.magicline_tabuList || [];
+			if ( CKEDITOR.tools.array.indexOf( config.magicline_tabuList, imageRowMagiclineAttr ) == -1 )
+				config.magicline_tabuList.push( imageRowMagiclineAttr );
+
 			// Since filebrowser plugin discovers config properties by dialog (plugin?)
 			// names (sic!), this hack will be necessary as long as Image2 is not named
 			// Image. And since Image2 will never be Image, for sure some filebrowser logic
@@ -119,6 +124,10 @@
 			}
 
 			CKEDITOR.dialog.add( 'image3', this.path + 'dialogs/image3.js' );
+
+			// Preserve image-row markers through source/wysiwyg mode roundtrips.
+			if ( editor.filter )
+				editor.filter.allow( 'div(image-row)[' + imageRowMagiclineAttr + ']' );
 		},
 
 		afterInit: function( editor ) {
