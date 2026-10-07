@@ -127,7 +127,7 @@
 
 			// Preserve image-row markers through source/wysiwyg mode roundtrips.
 			if ( editor.filter )
-				editor.filter.allow( 'div(image-row,image-row--left,image-row--center,image-row--right)[' + imageRowMagiclineAttr + ']' );
+				editor.filter.allow( 'div(image-row,image-row--left,image-row--center,image-row--right,image-row--wrap-left,image-row--wrap-right)[' + imageRowMagiclineAttr + ']' );
 		},
 
 		afterInit: function( editor ) {
@@ -1858,26 +1858,6 @@
 			right: 'image-row--right'
 		};
 
-		function getFocusedImageRow() {
-			var widget = getFocusedWidget( editor );
-
-			if ( !widget || !widget.element )
-				return null;
-
-			var row = widget.element.getAscendant( function( element ) {
-				return element &&
-					element.type == CKEDITOR.NODE_ELEMENT &&
-					element.is( 'div' ) &&
-					( element.hasClass( imageRowClass ) || !!element.getAttribute( imageRowMagiclineAttr ) );
-			}, true );
-
-			if ( row ) {
-				return row;
-			}
-
-			return null;
-		}
-
 		function setRowAlignClass( row, align ) {
 			row.addClass( imageRowClass );
 			row.setAttribute( imageRowMagiclineAttr, '1' );
@@ -1896,7 +1876,7 @@
 				return;
 
 			command.on( 'exec', function( evt ) {
-				var row = getFocusedImageRow();
+				var row = getFocusedImageRow( editor );
 
 				if ( !row )
 					return;
@@ -1910,7 +1890,7 @@
 			}, null, null, 999 );
 
 			command.on( 'refresh', function( evt ) {
-				var row = getFocusedImageRow();
+				var row = getFocusedImageRow( editor );
 
 				if ( !row )
 					return;
@@ -1926,27 +1906,72 @@
 	}
 
 	function setupImageFloatCommands( editor ) {
+		var wrapMap = {
+			left: 'image-row--wrap-left',
+			right: 'image-row--wrap-right'
+		};
+
+		function setRowWrapClass( row, align ) {
+			row.addClass( imageRowClass );
+			row.setAttribute( imageRowMagiclineAttr, '1' );
+			row.removeClass( wrapMap.left );
+			row.removeClass( wrapMap.right );
+
+			if ( wrapMap[ align ] )
+				row.addClass( wrapMap[ align ] );
+		}
+
+		function clearWidgetFloatForRow( widget ) {
+			var alignClasses = editor.config.image2_alignClasses,
+				styleable = widget && widget.element ? getStyleableElement( widget ) : null;
+
+			if ( !styleable )
+				return;
+
+			styleable.removeStyle( 'float' );
+			styleable.removeStyle( 'display' );
+
+			if ( alignClasses ) {
+				styleable.removeClass( alignClasses[ 0 ] );
+				styleable.removeClass( alignClasses[ 2 ] );
+			}
+		}
+
 		function addFloatCommand( commandName, alignValue ) {
 			editor.addCommand( commandName, new CKEDITOR.command( editor, {
 				contextSensitive: true,
 				startDisabled: true,
 				exec: function( editorInstance ) {
-					var widget = getFocusedWidget( editorInstance );
+					var widget = getFocusedWidget( editorInstance ),
+						row = getFocusedImageRow( editorInstance );
 
 					if ( widget ) {
-						widget.setData( 'align', alignValue );
+						if ( row ) {
+							setRowWrapClass( row, alignValue );
+							clearWidgetFloatForRow( widget );
+						} else {
+							widget.setData( 'align', alignValue );
+						}
 						refreshFloatCommands();
 					}
 				},
 				refresh: function( editorInstance ) {
-					var widget = getFocusedWidget( editorInstance );
+					var widget = getFocusedWidget( editorInstance ),
+						row = getFocusedImageRow( editorInstance );
 
 					if ( !widget ) {
 						this.setState( CKEDITOR.TRISTATE_DISABLED );
 						return;
 					}
 
-					this.setState( widget.data.align == alignValue ? CKEDITOR.TRISTATE_ON : CKEDITOR.TRISTATE_OFF );
+					if ( row ) {
+						if ( alignValue == 'none' )
+							this.setState( !row.hasClass( wrapMap.left ) && !row.hasClass( wrapMap.right ) ? CKEDITOR.TRISTATE_ON : CKEDITOR.TRISTATE_OFF );
+						else
+							this.setState( row.hasClass( wrapMap[ alignValue ] ) ? CKEDITOR.TRISTATE_ON : CKEDITOR.TRISTATE_OFF );
+					} else {
+						this.setState( widget.data.align == alignValue ? CKEDITOR.TRISTATE_ON : CKEDITOR.TRISTATE_OFF );
+					}
 				}
 			} ) );
 		}
@@ -2035,6 +2060,20 @@
 			return widget;
 
 		return null;
+	}
+
+	function getFocusedImageRow( editor ) {
+		var widget = getFocusedWidget( editor );
+
+		if ( !widget || !widget.element )
+			return null;
+
+		return widget.element.getAscendant( function( element ) {
+			return element &&
+				element.type == CKEDITOR.NODE_ELEMENT &&
+				element.is( 'div' ) &&
+				( element.hasClass( imageRowClass ) || !!element.getAttribute( imageRowMagiclineAttr ) );
+		}, true );
 	}
 
 	// Returns a set of widget allowedContent rules, depending
