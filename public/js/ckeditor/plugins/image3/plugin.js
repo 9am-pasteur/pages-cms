@@ -127,12 +127,13 @@
 
 			// Preserve image-row markers through source/wysiwyg mode roundtrips.
 			if ( editor.filter )
-				editor.filter.allow( 'div(image-row)[' + imageRowMagiclineAttr + ']' );
+				editor.filter.allow( 'div(image-row,image-row--left,image-row--center,image-row--right)[' + imageRowMagiclineAttr + ']' );
 		},
 
 		afterInit: function( editor ) {
 			// Keep paragraph justify behavior untouched and expose image-specific float controls.
 			setupImageFloatCommands( editor );
+			setupImageRowAlignCommands( editor );
 			installMagiclineImageRowGuard( editor );
 
 			// Integrate with link commands (link plugin).
@@ -1848,6 +1849,76 @@
 
 			evt.cancel();
 		} );
+	}
+
+	function setupImageRowAlignCommands( editor ) {
+		var map = {
+			left: 'image-row--left',
+			center: 'image-row--center',
+			right: 'image-row--right'
+		};
+
+		function getFocusedImageRow() {
+			var widget = getFocusedWidget( editor );
+
+			if ( !widget || !widget.element )
+				return null;
+
+			var row = widget.element.getAscendant( 'div', true );
+
+			if ( row && row.type == CKEDITOR.NODE_ELEMENT &&
+				( row.hasClass( imageRowClass ) || !!row.getAttribute( imageRowMagiclineAttr ) ) ) {
+				return row;
+			}
+
+			return null;
+		}
+
+		function setRowAlignClass( row, align ) {
+			row.addClass( imageRowClass );
+			row.setAttribute( imageRowMagiclineAttr, '1' );
+			row.removeClass( map.left );
+			row.removeClass( map.center );
+			row.removeClass( map.right );
+
+			if ( map[ align ] )
+				row.addClass( map[ align ] );
+		}
+
+		function bind( value ) {
+			var command = editor.getCommand( 'justify' + value );
+
+			if ( !command )
+				return;
+
+			command.on( 'exec', function( evt ) {
+				var row = getFocusedImageRow();
+
+				if ( !row )
+					return;
+
+				setRowAlignClass( row, value );
+				editor.fire( 'saveSnapshot' );
+				editor.getCommand( 'justifyleft' ) && editor.getCommand( 'justifyleft' ).refresh( editor, editor.elementPath() );
+				editor.getCommand( 'justifycenter' ) && editor.getCommand( 'justifycenter' ).refresh( editor, editor.elementPath() );
+				editor.getCommand( 'justifyright' ) && editor.getCommand( 'justifyright' ).refresh( editor, editor.elementPath() );
+				evt.cancel();
+			}, null, null, 999 );
+
+			command.on( 'refresh', function( evt ) {
+				var row = getFocusedImageRow();
+
+				if ( !row )
+					return;
+
+				this.setState( row.hasClass( map[ value ] ) ? CKEDITOR.TRISTATE_ON : CKEDITOR.TRISTATE_OFF );
+				evt.cancel();
+			}, null, null, 999 );
+		}
+
+		bind( 'left' );
+		bind( 'center' );
+		bind( 'right' );
 	}
 
 	function setupImageFloatCommands( editor ) {
