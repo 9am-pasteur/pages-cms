@@ -567,11 +567,15 @@
 
 					// Get <img/> or <a><img/></a> from widget. Note that widget element might itself
 					// be what we're looking for. Also element can be <p style="text-align:center"><a>...</a></p>.
-					var imageOrLink;
+					var imageOrLink,
+						parentRow = null;
 					if ( shift.element.is( { img: 1, a: 1 } ) )
 						imageOrLink = shift.element;
 					else
 						imageOrLink =  shift.element.findOne( 'a,img' );
+
+					if ( shift.element.is( 'figure' ) && isImageRow( shift.element.getParent() ) )
+						parentRow = shift.element.getParent();
 
 					// Switching hasCaption always destroys the widget.
 					shift.deflate();
@@ -603,6 +607,8 @@
 
 						// Update widget's element.
 						shift.element = imageOrLink;
+						if ( parentRow )
+							normalizeImageRow( parentRow );
 					}
 				},
 
@@ -729,6 +735,59 @@
 				return !!( element && element.type == CKEDITOR.NODE_ELEMENT && element.is( 'div' ) && element.hasClass( imageRowClass ) );
 			}
 
+			function isCaptionedFigure( element ) {
+				return !!( element &&
+					element.type == CKEDITOR.NODE_ELEMENT &&
+					element.is( 'figure' ) &&
+					element.hasClass( captionedClass ) );
+			}
+
+			function isIgnorableNode( node ) {
+				if ( !node )
+					return false;
+
+				if ( node.type == CKEDITOR.NODE_TEXT )
+					return !CKEDITOR.tools.trim( node.getText() );
+
+				if ( node.type != CKEDITOR.NODE_ELEMENT )
+					return false;
+
+				if ( node.is( 'br' ) )
+					return true;
+
+				// Treat empty blocks inserted between figures as ignorable separators.
+				if ( node.is( 'p' ) || node.is( 'div' ) ) {
+					var text = CKEDITOR.tools.trim( node.getText().replace( /\u00a0/g, '' ) );
+					return !text && !node.findOne( 'img,figure,a,table,ul,ol,blockquote,pre,iframe,video,audio' );
+				}
+
+				return false;
+			}
+
+			function previousSignificantSibling( node ) {
+				var current = node.getPrevious();
+
+				while ( current && isIgnorableNode( current ) ) {
+					var toRemove = current;
+					current = current.getPrevious();
+					toRemove.remove();
+				}
+
+				return current;
+			}
+
+			function nextSignificantSibling( node ) {
+				var current = node.getNext();
+
+				while ( current && isIgnorableNode( current ) ) {
+					var toRemove = current;
+					current = current.getNext();
+					toRemove.remove();
+				}
+
+				return current;
+			}
+
 			function createImageRow() {
 				return doc.createElement( 'div', {
 					attributes: {
@@ -755,11 +814,52 @@
 				source.remove();
 			}
 
-			function isCaptionedFigure( element ) {
-				return !!( element &&
-					element.type == CKEDITOR.NODE_ELEMENT &&
-					element.is( 'figure' ) &&
-					element.hasClass( captionedClass ) );
+			function normalizeImageRow( row ) {
+				if ( !isImageRow( row ) )
+					return null;
+
+				var child = row.getFirst(),
+					hasFigure = false,
+					lastOutside = row;
+
+				while ( child ) {
+					var nextChild = child.getNext();
+
+					if ( isIgnorableNode( child ) ) {
+						child.remove();
+					}
+					else if ( isCaptionedFigure( child ) ) {
+						hasFigure = true;
+					}
+					else if ( isImageRow( child ) ) {
+						mergeRows( row, child );
+					}
+					else {
+						// Move non-figure content out of the row, preserving order.
+						child.insertAfter( lastOutside );
+						lastOutside = child;
+					}
+
+					child = nextChild;
+				}
+
+				if ( !hasFigure ) {
+					row.remove();
+					return null;
+				}
+
+				// Merge adjacent rows, skipping ignorable separators.
+				var prev = previousSignificantSibling( row );
+				if ( isImageRow( prev ) ) {
+					mergeRows( prev, row );
+					row = prev;
+				}
+
+				var next = nextSignificantSibling( row );
+				if ( isImageRow( next ) )
+					mergeRows( row, next );
+
+				return row;
 			}
 
 			// Places a captioned figure into an image-row block and preserves
@@ -826,8 +926,8 @@
 
 				var hasBefore = !!figure.getPrevious(),
 					hasAfter = !!figure.getNext(),
-					prevSibling = paragraph.getPrevious(),
-					nextSibling = paragraph.getNext(),
+					prevSibling = previousSignificantSibling( paragraph ),
+					nextSibling = nextSignificantSibling( paragraph ),
 					prevRow = isImageRow( prevSibling ) ? prevSibling : null,
 					nextRow = isImageRow( nextSibling ) ? nextSibling : null,
 					row,
@@ -849,18 +949,21 @@
 						prevRow.append( figure );
 						mergeRows( prevRow, nextRow );
 						paragraph.remove();
+						normalizeImageRow( prevRow );
 						return;
 					}
 
 					if ( prevRow ) {
 						prevRow.append( figure );
 						paragraph.remove();
+						normalizeImageRow( prevRow );
 						return;
 					}
 
 					if ( nextRow ) {
 						prependChild( nextRow, figure );
 						paragraph.remove();
+						normalizeImageRow( nextRow );
 						return;
 					}
 
@@ -868,6 +971,7 @@
 					row.insertBefore( paragraph );
 					row.append( figure );
 					paragraph.remove();
+					normalizeImageRow( row );
 					return;
 				}
 
@@ -880,6 +984,7 @@
 						row.insertBefore( paragraph );
 						row.append( figure );
 					}
+					normalizeImageRow( prevRow || row );
 					return;
 				}
 
@@ -892,6 +997,7 @@
 						row.insertAfter( paragraph );
 						row.append( figure );
 					}
+					normalizeImageRow( nextRow || row );
 					return;
 				}
 
@@ -900,6 +1006,7 @@
 				row.insertAfter( paragraph );
 				row.append( figure );
 				afterParagraph.insertAfter( row );
+				normalizeImageRow( row );
 			}
 
 			return function( shift ) {
