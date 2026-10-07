@@ -1864,10 +1864,14 @@
 			if ( !widget || !widget.element )
 				return null;
 
-			var row = widget.element.getAscendant( 'div', true );
+			var row = widget.element.getAscendant( function( element ) {
+				return element &&
+					element.type == CKEDITOR.NODE_ELEMENT &&
+					element.is( 'div' ) &&
+					( element.hasClass( imageRowClass ) || !!element.getAttribute( imageRowMagiclineAttr ) );
+			}, true );
 
-			if ( row && row.type == CKEDITOR.NODE_ELEMENT &&
-				( row.hasClass( imageRowClass ) || !!row.getAttribute( imageRowMagiclineAttr ) ) ) {
+			if ( row ) {
 				return row;
 			}
 
