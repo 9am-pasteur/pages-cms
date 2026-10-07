@@ -1553,8 +1553,10 @@
 				exec: function( editorInstance ) {
 					var widget = getFocusedWidget( editorInstance );
 
-					if ( widget )
+					if ( widget ) {
 						widget.setData( 'align', alignValue );
+						refreshFloatCommands();
+					}
 				},
 				refresh: function( editorInstance ) {
 					var widget = getFocusedWidget( editorInstance );
