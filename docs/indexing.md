@@ -79,7 +79,6 @@ node scripts/build-public-index.mjs
 ```yaml
 publicIndex:
   pageSize: 20
-  outputDir: indexes-public
   # 指定時のみ対象。未指定なら collection を全対象
   includeCollections: [news-ja, news-en]
   # 既定: true
@@ -91,6 +90,8 @@ publicIndex:
   # 既定: desc
   sortOrder: desc
 ```
+
+> `build-public-index-basic.mjs` の出力先は `indexes-public` 固定です（workflow 例と整合させるため）。
 
 `build-public-index-basic.mjs` は次を自動推定します。
 
@@ -115,18 +116,25 @@ publicIndex:
 
 ## 3. GitHub Actions サンプル
 
-- CMS向け: `examples/indexer/github-workflow-example.yml`
-- 公開向け: `examples/indexer/github-workflow-public-example.yml`
+- 統合版（推奨）: `examples/indexer/github-workflow-example.yml`
+- 公開専用（必要なら）: `examples/indexer/github-workflow-public-example.yml`
 
-CMS向け workflow の特徴:
+> 推奨は **統合版1本** です。CMS向けと公開向けを別 workflow にすると、同時 push で non-fast-forward が起きやすくなります。
 
-- `indexes/**` への自己更新コミットでは再実行しない（`paths-ignore`）
-- `workflow_dispatch` から強制再生成可能（`FORCE_INDEX_REBUILD=1`）
+統合版 workflow の特徴:
 
-公開向け workflow の特徴:
+- `indexes/**` と `indexes-public/**` の自己更新コミットでは再実行しない（`paths-ignore`）
+- `scripts/build-index.mjs` / `scripts/build-public-index.mjs` が存在するものだけ実行
+- `workflow_dispatch` で強制再生成可能:
+  - `force_index_rebuild` → `FORCE_INDEX_REBUILD=1`
+  - `force_public_index_rebuild` → `FORCE_PUBLIC_INDEX_REBUILD=1`
+- commit 前に `git pull --rebase --autostash` を行い、競合時の失敗を減らす
 
-- `indexes-public/**` への自己更新コミットでは再実行しない（`paths-ignore`）
-- `workflow_dispatch` から強制再生成可能（`FORCE_PUBLIC_INDEX_REBUILD=1`）
+手動実行手順（GitHub Actions）:
+
+1. `Actions` タブで対象 workflow を開く
+2. `Run workflow` を押す
+3. 必要に応じて `force_index_rebuild` / `force_public_index_rebuild` を `1` にして実行
 
 ## 4. 実運用向け拡張の考え方
 

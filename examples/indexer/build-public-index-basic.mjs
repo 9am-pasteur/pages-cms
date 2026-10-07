@@ -12,7 +12,7 @@ import { glob } from 'glob';
 
 const exec = promisify(execFile);
 const REPO_ROOT = process.cwd();
-const DEFAULT_OUT_DIR = 'indexes-public';
+const OUT_DIR_NAME = 'indexes-public';
 const DEFAULT_PAGE_SIZE = 20;
 const ZERO_SHA = '0000000000000000000000000000000000000000';
 const FORCE_PUBLIC_INDEX_REBUILD = isTruthyEnv(process.env.FORCE_PUBLIC_INDEX_REBUILD);
@@ -33,7 +33,7 @@ async function main() {
   const config = YAML.parse(rawConfig, { strict: false }) || {};
   const publicCfg = config.publicIndex || {};
 
-  const outDir = path.join(REPO_ROOT, String(publicCfg.outputDir || DEFAULT_OUT_DIR));
+  const outDir = path.join(REPO_ROOT, OUT_DIR_NAME);
   const pageSize = Number(publicCfg.pageSize || DEFAULT_PAGE_SIZE);
   const onlyPublished = publicCfg.onlyPublished !== false;
   const publishedField = String(publicCfg.publishedField || 'published');
