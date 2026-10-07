@@ -242,40 +242,10 @@ Cloudflare has very generous free tiers and can also host your actual website. I
 
 ## Optional: インデックス生成（大規模コレクション向け）
 
-Pages CMS で大きなコレクションを高速に一覧するために、frontmatter 抽出済みの index JSON を生成するサンプルを用意しています。  
-Pages CMS 本体ではなく、**コンテンツを置いているリポジトリ側**に導入してください。
+インデックス生成は、CMS向け（`indexes/**`）と公開サイト向け（`indexes-public/**`）の2種類を用意しています。
 
-### まず何をするか（GitHub 利用者向け最短）
-
-1. コンテンツリポジトリに `scripts/build-index.mjs` を配置  
-   - `examples/indexer/build-index.mjs` をコピー
-2. GitHub Actions workflow を配置  
-   - `examples/indexer/github-workflow-example.yml` を `.github/workflows/index.yml` へコピー
-3. push すると `indexes/<collection>.json`（必要なら `part` 分割）が自動生成・コミットされる
-
-> GitHub Actions を使う場合は、`yaml` / `@ltd/j-toml` の依存解決は workflow 側で実行されるため、通常ローカルで `npm install` する必要はありません。
-
-### GitLab CI などを使う場合
-
-- 上記と同じ `scripts/build-index.mjs` を使い、CI ジョブで `node scripts/build-index.mjs` を実行してください。
-- その場合はジョブ内で `npm ci` もしくは `npm install yaml @ltd/j-toml` が必要です。
-
-### `.pages.yml` 側の主な設定
-
-- `indexFields`:
-  - index に含める frontmatter キーを追加指定
-  - 未指定でも `fields` / `view.fields` / `view.sort` などに出てくるキーは自動で含まれます
-- `indexAllFrontmatter`:
-  - `true` にすると frontmatter をほぼ全項目 index に含める（`body` は除外）
-- `indexSplitSize`:
-  - 分割の目安サイズ（MB）。既定 `2`
-- `indexPageSize`:
-  - 1ファイルあたり件数の目安。既定 `200`
-
-### 生成される index の補足（開発者向け）
-
-- index メタには `content_sha` と `content_parents` が含まれます。
-- クライアント側で楽観的変更（ローカルの保存・削除）とマージしやすい構造です。
+- 導入手順・設定・workflow例は [docs/indexing.md](./docs/indexing.md) を参照してください。
+- サンプルスクリプトは `examples/indexer/` 配下にあります。
 
 ## License
 

@@ -1,0 +1,60 @@
+name: Build Pages CMS Public Indexes
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'indexes-public/**'
+  workflow_dispatch:
+    inputs:
+      force_public_index_rebuild:
+        description: 'Force public index rebuild (0/1)'
+        required: false
+        default: '0'
+        type: choice
+        options:
+          - '0'
+          - '1'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-cms-public-index-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm install --no-save --no-package-lock yaml glob
+
+      - name: Build public indexes
+        env:
+          FORCE_PUBLIC_INDEX_REBUILD: ${{ github.event.inputs.force_public_index_rebuild || '0' }}
+        run: node scripts/build-public-index.mjs
+
+      - name: Commit public indexes if changed
+        run: |
+          if git status --porcelain | grep .; then
+            git config user.name "pages-cms-bot"
+            git config user.email "pages-cms-bot@example.com"
+            CONTENT_SHA=$(git rev-parse HEAD)
+            git add indexes-public
+            git commit -m "chore: update public indexes (content @ ${CONTENT_SHA}) [skip ci]"
+            git push
+          else
+            echo "No public index changes"
+          fi
