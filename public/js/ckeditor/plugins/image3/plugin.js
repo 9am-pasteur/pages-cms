@@ -755,13 +755,74 @@
 				source.remove();
 			}
 
+			function isCaptionedFigure( element ) {
+				return !!( element &&
+					element.type == CKEDITOR.NODE_ELEMENT &&
+					element.is( 'figure' ) &&
+					element.hasClass( captionedClass ) );
+			}
+
 			// Places a captioned figure into an image-row block and preserves
 			// surrounding text flow by splitting paragraphs when needed.
 			function placeFigureInRow( figure ) {
+				var parent = figure.getParent();
+
+				if ( !parent )
+					return;
+
+				// Already grouped.
+				if ( isImageRow( parent ) )
+					return;
+
 				var paragraph = figure.getAscendant( 'p', true );
 
-				if ( !paragraph || !paragraph.equals( figure.getParent() ) )
+				// Fallback for cases where browser/editor already split invalid <p><figure>.
+				// In such case the figure is usually a direct sibling of paragraphs/figures.
+				if ( !paragraph || !paragraph.equals( figure.getParent() ) ) {
+					var prev = figure.getPrevious(),
+						next = figure.getNext(),
+						prevRow = isImageRow( prev ) ? prev : null,
+						nextRow = isImageRow( next ) ? next : null,
+						row;
+
+					if ( prevRow && nextRow ) {
+						prevRow.append( figure );
+						mergeRows( prevRow, nextRow );
+						return;
+					}
+
+					if ( prevRow ) {
+						prevRow.append( figure );
+						return;
+					}
+
+					if ( nextRow ) {
+						prependChild( nextRow, figure );
+						return;
+					}
+
+					// Treat row-less figures like a pending row and group them lazily.
+					if ( isCaptionedFigure( prev ) ) {
+						row = createImageRow();
+						row.insertBefore( prev );
+						prev.move( row );
+						figure.move( row );
+						return;
+					}
+
+					if ( isCaptionedFigure( next ) ) {
+						row = createImageRow();
+						row.insertBefore( figure );
+						figure.move( row );
+						next.move( row );
+						return;
+					}
+
+					row = createImageRow();
+					row.insertBefore( figure );
+					figure.move( row );
 					return;
+				}
 
 				var hasBefore = !!figure.getPrevious(),
 					hasAfter = !!figure.getNext(),
