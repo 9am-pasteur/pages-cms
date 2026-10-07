@@ -37,6 +37,86 @@
 - `image2` と `image3` の同時有効化は避けてください。
 - 既存文書の `center` 画像は読めますが、新規操作では `center` を作らない設計です。
 
+## `image-row` のクラスと CSS
+
+`image3` では、キャプション付き画像を複数並べるために `div.image-row` を使います。
+
+- `JustifyLeft/Center/Right`:
+  - `image-row--left`
+  - `image-row--center`
+  - `image-row--right`
+- `Image3FloatLeft/None/Right`:
+  - `image-row--wrap-left`
+  - `image-row--wrap-right`
+  - （`None` は上記 wrap クラスを外す）
+
+公開側 CSS と `contentsCss` に、次のようなスタイルを用意してください。
+
+```css
+/* image3 row layout */
+.image-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  margin: 1em 0;
+}
+
+/* row alignment variants */
+.image-row--left {
+  justify-content: flex-start;
+}
+.image-row--center {
+  justify-content: center;
+}
+.image-row--right {
+  justify-content: flex-end;
+}
+
+/* row-level text wrap (float on row itself) */
+.image-row--wrap-left {
+  float: left;
+  margin: 0 1rem 1rem 0;
+  width: fit-content;
+  max-width: 100%;
+}
+.image-row--wrap-right {
+  float: right;
+  margin: 0 0 1rem 1rem;
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* figure/image normalization inside row */
+.image-row figure.image {
+  margin: 0;
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+.image-row figure.image > img,
+.image-row figure.image > a > img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* caption look (optional) */
+.image-row figure.image > figcaption {
+  margin-top: 0.4em;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+/* responsive: narrow screens */
+@media (max-width: 640px) {
+  .image-row {
+    gap: 0.75rem;
+  }
+}
+```
+
+必要に応じて、サイト側のスコープ（例: `.content-body-box .image-row ...`）を付けてください。
+
 ## 既知の互換方針
 
 - 画像ウィジェット名は `image`（既存 image2 と同じ）を前提に扱います。
