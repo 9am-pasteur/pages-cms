@@ -13,6 +13,7 @@
 				template +
 				'<figcaption>{captionPlaceholder}</figcaption>' +
 			'</figure>' ),
+		imageRowClass = 'image-row',
 		alignmentsObj = { left: 0, center: 1, right: 2 },
 		regexPercent = /^\s*(\d+\%)\s*$/i;
 
@@ -592,6 +593,7 @@
 
 						// Update widget's element.
 						shift.element = figure;
+						placeFigureInRow( shift.element );
 					}
 
 					// The caption was present, but now it's to be removed.
@@ -721,6 +723,122 @@
 				else {
 					replacing.replace( replaced );
 				}
+			}
+
+			function isImageRow( element ) {
+				return !!( element && element.type == CKEDITOR.NODE_ELEMENT && element.is( 'div' ) && element.hasClass( imageRowClass ) );
+			}
+
+			function createImageRow() {
+				return doc.createElement( 'div', {
+					attributes: {
+						'class': imageRowClass
+					}
+				} );
+			}
+
+			function prependChild( parent, element ) {
+				var first = parent.getFirst();
+
+				if ( first )
+					element.insertBefore( first );
+				else
+					parent.append( element );
+			}
+
+			function mergeRows( target, source ) {
+				var child;
+
+				while ( ( child = source.getFirst() ) )
+					child.move( target );
+
+				source.remove();
+			}
+
+			// Places a captioned figure into an image-row block and preserves
+			// surrounding text flow by splitting paragraphs when needed.
+			function placeFigureInRow( figure ) {
+				var paragraph = figure.getAscendant( 'p', true );
+
+				if ( !paragraph || !paragraph.equals( figure.getParent() ) )
+					return;
+
+				var hasBefore = !!figure.getPrevious(),
+					hasAfter = !!figure.getNext(),
+					prevSibling = paragraph.getPrevious(),
+					nextSibling = paragraph.getNext(),
+					prevRow = isImageRow( prevSibling ) ? prevSibling : null,
+					nextRow = isImageRow( nextSibling ) ? nextSibling : null,
+					row,
+					afterParagraph,
+					next;
+
+				if ( hasBefore && hasAfter ) {
+					afterParagraph = paragraph.clone( false, true );
+
+					while ( ( next = figure.getNext() ) )
+						next.move( afterParagraph );
+				}
+
+				figure.remove();
+
+				// Figure was the only content of the paragraph.
+				if ( !hasBefore && !hasAfter ) {
+					if ( prevRow && nextRow ) {
+						prevRow.append( figure );
+						mergeRows( prevRow, nextRow );
+						paragraph.remove();
+						return;
+					}
+
+					if ( prevRow ) {
+						prevRow.append( figure );
+						paragraph.remove();
+						return;
+					}
+
+					if ( nextRow ) {
+						prependChild( nextRow, figure );
+						paragraph.remove();
+						return;
+					}
+
+					row = createImageRow();
+					row.insertBefore( paragraph );
+					row.append( figure );
+					paragraph.remove();
+					return;
+				}
+
+				// Figure was at paragraph start.
+				if ( !hasBefore ) {
+					if ( prevRow )
+						prevRow.append( figure );
+					else {
+						row = createImageRow();
+						row.insertBefore( paragraph );
+						row.append( figure );
+					}
+					return;
+				}
+
+				// Figure was at paragraph end.
+				if ( !hasAfter ) {
+					if ( nextRow )
+						prependChild( nextRow, figure );
+					else {
+						row = createImageRow();
+						row.insertAfter( paragraph );
+						row.append( figure );
+					}
+					return;
+				}
+
+				// Figure was in paragraph middle (split to before/after paragraphs).
+				row = createImageRow();
+				row.insertAfter( paragraph );
+				row.append( figure );
+				afterParagraph.insertAfter( row );
 			}
 
 			return function( shift ) {
@@ -1039,6 +1157,10 @@
 		return function( el ) {
 			// Wrapper must be either <div> or <p>.
 			if ( !( el.name in { div: 1, p: 1 } ) )
+				return false;
+
+			// Never treat custom image row wrappers as centering wrappers.
+			if ( el.name == 'div' && ( el.attributes[ 'class' ] || '' ).indexOf( imageRowClass ) > -1 )
 				return false;
 
 			var children = el.children;
