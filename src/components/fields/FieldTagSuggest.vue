@@ -163,6 +163,12 @@ const splitByDelimiters = (value) => {
   const classSource = chars.map((char) => escapeForCharClass(char)).join('');
   return source.split(new RegExp(`[${classSource}]`, 'g'));
 };
+const delimiterPattern = computed(() => {
+  const chars = delimiterChars.value.filter((char) => typeof char === 'string' && char.length > 0);
+  if (chars.length === 0) return null;
+  const classSource = chars.map((char) => escapeForCharClass(char)).join('');
+  return new RegExp(`[${classSource}]`);
+});
 
 const parseTags = (value) => {
   if (!value) return [];
@@ -307,6 +313,13 @@ const fetchTagDetail = async (tag) => {
 const debouncedFetch = debounce(fetchSuggestions, 350);
 
 watch(query, () => {
+  const nextQuery = consumeDelimitedQuery(query.value, true);
+  if (nextQuery !== query.value) {
+    query.value = nextQuery;
+    suggestions.value = [];
+    hasFetched.value = false;
+    return;
+  }
   debouncedFetch();
 });
 
@@ -320,14 +333,24 @@ const addTag = (value) => {
   return true;
 };
 
+const consumeDelimitedQuery = (value = '', keepTail = true) => {
+  const source = String(value || '');
+  if (!source) return '';
+  const pattern = delimiterPattern.value;
+  if (!pattern || !pattern.test(source)) return source;
+
+  const hasTrailingDelimiter = pattern.test(source.slice(-1));
+  const parts = splitByDelimiters(source);
+  const tail = keepTail && !hasTrailingDelimiter ? parts.pop() || '' : '';
+  parts.forEach((part) => addTag(part));
+  return tail;
+};
+
 const commitQuery = () => {
-  const parts = splitByDelimiters(query.value);
-  let hasAdded = false;
-  parts.forEach((part) => {
-    if (addTag(part)) hasAdded = true;
-  });
+  const before = tags.value.length;
+  consumeDelimitedQuery(query.value, false);
   query.value = '';
-  if (hasAdded) suggestions.value = [];
+  if (tags.value.length > before) suggestions.value = [];
 };
 
 const removeTag = (index) => {
