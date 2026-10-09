@@ -348,7 +348,11 @@ const consumeDelimitedQuery = (value = '', keepTail = true) => {
 
 const commitQuery = () => {
   const before = tags.value.length;
-  consumeDelimitedQuery(query.value, false);
+  const source = String(query.value || '');
+  const parsedTail = consumeDelimitedQuery(source, false);
+  if (source.trim() && parsedTail === source) {
+    addTag(source);
+  }
   query.value = '';
   if (tags.value.length > before) suggestions.value = [];
 };
