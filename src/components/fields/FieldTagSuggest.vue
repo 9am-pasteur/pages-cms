@@ -123,6 +123,20 @@ const minQueryLength = computed(() => {
   const value = Number(props.field.options?.minQueryLength);
   return Number.isFinite(value) ? value : 0;
 });
+const delimiterChars = computed(() => {
+  const defaults = [','];
+  const extrasRaw = props.field.options?.extraDelimiters ?? props.field.options?.extraPunctuations;
+  if (typeof extrasRaw === 'string') {
+    return Array.from(new Set([...defaults, ...Array.from(extrasRaw)]));
+  }
+  if (Array.isArray(extrasRaw)) {
+    const chars = extrasRaw
+      .filter((entry) => typeof entry === 'string')
+      .flatMap((entry) => Array.from(entry));
+    return Array.from(new Set([...defaults, ...chars]));
+  }
+  return defaults;
+});
 const placeholder = computed(() => {
   return props.field.options?.placeholder || 'Type a tag...';
 });
@@ -139,11 +153,20 @@ const activeTagDetail = computed(() => {
 const isDetailLoading = computed(() => !!detailLoadingKey.value && detailLoadingKey.value === activeTagKey.value);
 
 const normalizeTag = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+const escapeForCharClass = (value) => value.replace(/[\\\]^/-]/g, '\\$&');
+
+const splitByDelimiters = (value) => {
+  const source = String(value || '');
+  if (!source) return [];
+  const chars = delimiterChars.value.filter((char) => typeof char === 'string' && char.length > 0);
+  if (chars.length === 0) return [source];
+  const classSource = chars.map((char) => escapeForCharClass(char)).join('');
+  return source.split(new RegExp(`[${classSource}]`, 'g'));
+};
 
 const parseTags = (value) => {
   if (!value) return [];
-  return String(value)
-    .split(',')
+  return splitByDelimiters(value)
     .map((entry) => normalizeTag(entry))
     .filter(Boolean);
 };
@@ -298,10 +321,13 @@ const addTag = (value) => {
 };
 
 const commitQuery = () => {
-  if (addTag(query.value)) {
-    query.value = '';
-    suggestions.value = [];
-  }
+  const parts = splitByDelimiters(query.value);
+  let hasAdded = false;
+  parts.forEach((part) => {
+    if (addTag(part)) hasAdded = true;
+  });
+  query.value = '';
+  if (hasAdded) suggestions.value = [];
 };
 
 const removeTag = (index) => {
@@ -324,10 +350,14 @@ const selectSuggestion = (tag) => {
 };
 
 const handleKeydown = (event) => {
-  if (event.key === ',' || event.key === 'Enter' || event.key === 'Tab') {
+  if (event.isComposing) return;
+  const isDelimiterKey = delimiterChars.value.includes(event.key);
+  if (isDelimiterKey || event.key === 'Enter' || event.key === 'Tab') {
     if (query.value.trim()) {
       event.preventDefault();
       commitQuery();
+    } else if (isDelimiterKey) {
+      event.preventDefault();
     }
     return;
   }
