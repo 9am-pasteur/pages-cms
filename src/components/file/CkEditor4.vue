@@ -114,7 +114,7 @@ const exportContent = (content) => {
   if (props.format === 'markdown') {
     return turndownService.turndown(htmlContent);
   } else if (props.format === 'html') {
-    return htmlContent.replace(/(<(?:br|hr) ?\/>|<\/(?:p|div|td|tr|table|h\d)>|<(?:tr|tbody)>)/g, "$1\n");
+    return htmlContent.replace(/(<(?:br|hr)\s*\/?>|<\/(?:p|div|td|tr|table|h\d)>|<(?:tr|tbody)>)(?!\r?\n)/g, "$1\n");
   }
   return htmlContent;
 };
